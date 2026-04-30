@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>信男藥局｜庫存效期盤點系統原型</title>
+  <style>
+    :root {
+      --ink: #17202a;
+      --muted: #657180;
+      --line: #dce3ea;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --blue: #2563eb;
+      --teal: #0f766e;
+      --green: #15803d;
+      --amber: #b7791f;
+      --orange: #c2410c;
+      --red: #b91c1c;
+      --violet: #6d28d9;
+      --shadow: 0 14px 40px rgba(22, 31, 45, .08);
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Noto Sans TC", "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    button, input, select, textarea {
+      font: inherit;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 248px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      background: #111827;
+      color: #f9fafb;
+      padding: 22px 18px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+
+    .brand {
+      border-bottom: 1px solid rgba(255,255,255,.12);
+      padding-bottom: 20px;
+      margin-bottom: 18px;
+    }
+
+    .brand-title {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 0;
+      margin: 0 0 6px;
+    }
+
+    .brand-subtitle {
+      color: #aeb7c4;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .nav {
+      display: grid;
+      gap: 6px;
+    }
+
+    .nav button {
+      border: 0;
+      background: transparent;
+      color: #cbd5e1;
+      text-align: left;
+      padding: 11px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav button.active,
+    .nav button:hover {
+      background: #1f2937;
+      color: #ffffff;
+    }
+
+    .nav svg,
+    .icon svg {
+      width: 18px;
+      height: 18px;
+      stroke-width: 2;
+    }
+
+    main {
+      min-width: 0;
+      padding: 22px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+
+    .eyebrow {
+      color: var(--teal);
+      font-size: 13px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    h1 {
+      font-size: 28px;
+      line-height: 1.2;
+      margin: 0 0 8px;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      color: var(--muted);
+      margin: 0;
+      line-height: 1.7;
+      max-width: 820px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--ink);
+      border-radius: 8px;
+      height: 38px;
+      padding: 0 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .btn.primary {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+    }
+
+    .btn.ghost {
+      background: transparent;
+    }
+
+    .section {
+      display: none;
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .metric {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow);
+      min-height: 112px;
+    }
+
+    .metric-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+
+    .metric-value {
+      font-size: 28px;
+      font-weight: 850;
+      margin-bottom: 6px;
+    }
+
+    .metric-note {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(320px, .9fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      padding: 15px 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .panel-title {
+      font-size: 16px;
+      font-weight: 850;
+      margin: 0;
+    }
+
+    .panel-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .panel-body {
+      padding: 16px;
+    }
+
+    .task-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .task {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: start;
+      background: #fff;
+    }
+
+    .task h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      line-height: 1.45;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-size: 12px;
+      font-weight: 760;
+      background: #eef2f7;
+      color: #364152;
+    }
+
+    .pill.teal { background: #d9f3ef; color: var(--teal); }
+    .pill.blue { background: #dbeafe; color: var(--blue); }
+    .pill.green { background: #dcfce7; color: var(--green); }
+    .pill.amber { background: #fef3c7; color: var(--amber); }
+    .pill.orange { background: #ffedd5; color: var(--orange); }
+    .pill.red { background: #fee2e2; color: var(--red); }
+    .pill.violet { background: #ede9fe; color: var(--violet); }
+
+    .task-form {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--line);
+    }
+
+    .category-items {
+      grid-column: 1 / -1;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: #f8fafc;
+    }
+
+    .category-items table {
+      font-size: 13px;
+      min-width: 720px;
+    }
+
+    .category-items th,
+    .category-items td {
+      padding: 9px 10px;
+    }
+
+    .check-items {
+      grid-column: 1 / -1;
+      display: grid;
+      gap: 10px;
+    }
+
+    .check-row {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #f8fafc;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: minmax(180px, 1.4fr) 110px 132px 148px 104px;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .check-product {
+      min-width: 0;
+    }
+
+    .check-sku {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .check-name {
+      font-weight: 780;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+
+    .check-field {
+      display: grid;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .check-field span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 760;
+    }
+
+    .check-field strong {
+      min-height: 38px;
+      display: inline-flex;
+      align-items: center;
+      color: var(--ink);
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 720;
+    }
+
+    input, select, textarea {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 10px;
+      background: #fff;
+      color: var(--ink);
+      min-width: 0;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 38px;
+    }
+
+    .wide {
+      grid-column: span 2;
+    }
+
+    .full {
+      grid-column: 1 / -1;
+    }
+
+    .warning-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .warning {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 13px;
+      background: #fff;
+    }
+
+    .warning strong {
+      display: block;
+      font-size: 24px;
+      margin-bottom: 6px;
+    }
+
+    .warning span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      display: block;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: #4b5563;
+      font-size: 12px;
+      font-weight: 850;
+      background: #f8fafc;
+    }
+
+    tbody tr:hover td {
+      background: #fbfdff;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .toolbar input {
+      flex: 1;
+      min-width: 220px;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 12px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr);
+      gap: 12px;
+      align-items: start;
+    }
+
+    .step-num {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      background: #111827;
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-weight: 850;
+    }
+
+    .step h3 {
+      font-size: 15px;
+      margin: 0 0 5px;
+    }
+
+    .step p {
+      color: var(--muted);
+      line-height: 1.7;
+      margin: 0;
+    }
+
+    .formula {
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      border-radius: var(--radius);
+      padding: 12px;
+      color: #334155;
+      line-height: 1.7;
+      font-size: 14px;
+    }
+
+    @media (max-width: 1080px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar {
+        position: static;
+        height: auto;
+      }
+      .nav {
+        display: flex;
+        overflow-x: auto;
+        padding-bottom: 4px;
+      }
+      .nav button {
+        white-space: nowrap;
+      }
+      .metrics,
+      .warning-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 680px) {
+      main { padding: 14px; }
+      .topbar { display: grid; }
+      .actions { justify-content: flex-start; }
+      h1 { font-size: 23px; }
+      .metrics,
+      .warning-grid,
+      .task-form {
+        grid-template-columns: 1fr;
+      }
+      .wide { grid-column: auto; }
+      .task {
+        grid-template-columns: 1fr;
+      }
+      table {
+        min-width: 760px;
+      }
+      .table-scroll {
+        overflow-x: auto;
+      }
+      .check-row {
+        grid-template-columns: 1fr;
+      }
+      .check-field strong {
+        min-height: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <h2 class="brand-title">信男藥局</h2>
+        <div class="brand-subtitle">庫存效期盤點系統<br>Google Sheet Web App 原型</div>
+      </div>
+
+      <nav class="nav" aria-label="主要功能">
+        <button class="active" data-tab="dashboard">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 13h8V3H3v10Z"/><path d="M13 21h8V11h-8v10Z"/><path d="M13 3v6h8V3h-8Z"/><path d="M3 21h8v-6H3v6Z"/></svg></span>
+          今日盤點
+        </button>
+        <button data-tab="expiry">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h18"/><path d="M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z"/><path d="M12 14v3"/><path d="M12 20h.01"/></svg></span>
+          效期警示
+        </button>
+        <button data-tab="products">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 8a2 2 0 0 0-1-1.73L13 2.27a2 2 0 0 0-2 0L4 6.27A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg></span>
+          庫存總覽
+        </button>
+        <button data-tab="calendar">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h18"/><path d="M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/></svg></span>
+          盤點行事曆
+        </button>
+        <button data-tab="plan">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+          執行步驟
+        </button>
+      </nav>
+    </aside>
+
+    <main>
+      <div class="topbar">
+        <div>
+          <div class="eyebrow">每日依 A-J 系列安排盤點，效期全部重新補登</div>
+          <h1>庫存與效期盤點工作台</h1>
+          <p class="lead">用 Google Sheet 保存產品主檔、庫存現況、效期批次與盤點紀錄。第一版先串接蝦皮獲利表、每日入庫清單與 AjinERP 庫存盤點表，讓同仁每天完成高風險類別盤點。</p>
+        </div>
+        <div class="actions">
+          <button class="btn ghost" id="syncBtn" type="button">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M16 8h5V3"/></svg>
+            同步商品
+          </button>
+          <button class="btn primary" id="saveBtn" type="button">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+            儲存盤點
+          </button>
+        </div>
+      </div>
+
+      <section id="dashboard" class="section active">
+        <div class="metrics">
+          <div class="metric">
+            <div class="metric-top"><span>今日任務</span><span class="pill blue">2 類</span></div>
+            <div class="metric-value">1 / 2</div>
+            <div class="metric-note">已完成 1 個類別，剩餘 1 個類別待確認效期。</div>
+          </div>
+          <div class="metric">
+            <div class="metric-top"><span>D系列優先</span><span class="pill teal">高</span></div>
+            <div class="metric-value">68%</div>
+            <div class="metric-note">本週盤點任務以營養奶水、粉、口罩與保健食品系列為主。</div>
+          </div>
+          <div class="metric">
+            <div class="metric-top"><span>一年內到期</span><span class="pill amber">新增</span></div>
+            <div class="metric-value">42</div>
+            <div class="metric-note">列入效期警示，適合提早安排銷售或調貨。</div>
+          </div>
+          <div class="metric">
+            <div class="metric-top"><span>異常待處理</span><span class="pill red">注意</span></div>
+            <div class="metric-value">7</div>
+            <div class="metric-note">包含庫存差異、效期空白、低於安全庫存。</div>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">今日盤點類別</h2>
+                <div class="panel-subtitle">系統每天至少安排 2 個類別；同類別的口味、規格或顏色一起盤。</div>
+              </div>
+              <span class="pill blue">2026-04-29</span>
+            </div>
+            <div class="panel-body">
+              <div class="task-list" id="todayTaskList">
+                <article class="task">
+                  <div>
+                    <h3>倍速｜全口味盤點</h3>
+                    <div class="meta">
+                      <span class="pill teal">D系列 營養奶水、粉</span>
+                      <span class="pill amber">一年內到期</span>
+                      <span class="pill">5 個產品貨號</span>
+                      <span class="pill">上次類別盤點 37 天前</span>
+                    </div>
+                  </div>
+                  <span class="pill orange">待盤點</span>
+                  <div class="category-items table-scroll">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>產品貨號</th>
+                          <th>品項</th>
+                          <th>系統庫存</th>
+                          <th>實際庫存</th>
+                          <th>最近效期</th>
+                          <th>狀態</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>N0010008</td>
+                          <td>倍速｜原味 237ml</td>
+                          <td>24</td>
+                          <td><input type="number" value="24"></td>
+                          <td><input type="date" value="2027-01-31"></td>
+                          <td><span class="pill green">正常</span></td>
+                        </tr>
+                        <tr>
+                          <td>N0010009</td>
+                          <td>倍速｜香草 237ml</td>
+                          <td>18</td>
+                          <td><input type="number" value="18"></td>
+                          <td><input type="date" value="2026-11-30"></td>
+                          <td><span class="pill amber">一年內</span></td>
+                        </tr>
+                        <tr>
+                          <td>N0010010</td>
+                          <td>倍速｜草莓 237ml</td>
+                          <td>6</td>
+                          <td><input type="number" value="6"></td>
+                          <td><input type="date" value="2026-08-20"></td>
+                          <td><span class="pill orange">180 天內</span></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="task-form">
+                    <label>儲位<select><option>A 架</option><option>B 架</option><option>倉庫</option></select></label>
+                    <label>類別狀態<select><option>部分待確認</option><option>正常</option><option>庫存差異</option><option>效期異常</option></select></label>
+                    <label class="wide">類別備註<textarea placeholder="可填寫整個類別的補貨、促銷、調貨或效期處理建議"></textarea></label>
+                  </div>
+                </article>
+
+                <article class="task">
+                  <div>
+                    <h3>郡昱成人立體口罩｜全顏色盤點</h3>
+                    <div class="meta">
+                      <span class="pill blue">口罩類</span>
+                      <span class="pill">各色同類別</span>
+                      <span class="pill">12 個產品貨號</span>
+                      <span class="pill violet">顏色多，易漏盤</span>
+                    </div>
+                  </div>
+                  <span class="pill green">已完成</span>
+                  <div class="category-items table-scroll">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>產品貨號</th>
+                          <th>品項</th>
+                          <th>系統庫存</th>
+                          <th>實際庫存</th>
+                          <th>效期/批號</th>
+                          <th>狀態</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>M0210001</td>
+                          <td>郡昱成人立體口罩｜曜石黑</td>
+                          <td>32</td>
+                          <td><input type="number" value="32"></td>
+                          <td><input type="text" value="2029-12"></td>
+                          <td><span class="pill green">正常</span></td>
+                        </tr>
+                        <tr>
+                          <td>M0210002</td>
+                          <td>郡昱成人立體口罩｜燕麥奶</td>
+                          <td>18</td>
+                          <td><input type="number" value="17"></td>
+                          <td><input type="text" value="2029-12"></td>
+                          <td><span class="pill red">差異 -1</span></td>
+                        </tr>
+                        <tr>
+                          <td>M0210003</td>
+                          <td>郡昱成人立體口罩｜夏雪草灰</td>
+                          <td>22</td>
+                          <td><input type="number" value="22"></td>
+                          <td><input type="text" value="2029-10"></td>
+                          <td><span class="pill green">正常</span></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="task-form">
+                    <label>儲位<select><option>口罩區</option><option>倉庫</option><option>櫃台</option></select></label>
+                    <label>類別狀態<select><option>庫存差異</option><option>正常</option><option>效期異常</option></select></label>
+                    <label class="wide">類別備註<textarea>燕麥奶實盤少 1 盒，需確認是否已出貨未扣庫。</textarea></label>
+                  </div>
+                </article>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">排程規則</h2>
+                <div class="panel-subtitle">第一版建議先使用分數排序，後續再依銷售速度調整。</div>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="formula">
+                <strong>每日類別優先順序</strong><br>
+                排程以「A-J 系列」為單位，每日至少安排 2 個類別。D系列營養奶水、粉優先，其次為 A系列保健食品、I系列美食/伴手禮與 B系列口罩；若行事曆已有預排，首頁優先顯示行事曆任務。
+              </div>
+              <div style="height:12px"></div>
+              <div class="formula">
+                <strong>盤點類別範例</strong><br>
+                倍速全口味算一類，倍速益全部規格算一類，郡昱成人立體口罩各種顏色算一類；類別底下再展開產品貨號逐項填庫存與效期。
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="expiry" class="section">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">效期警示</h2>
+              <div class="panel-subtitle">目前效期全部重新盤點，這裡顯示待補效期商品。</div>
+            </div>
+            <button class="btn" type="button">匯出清單</button>
+          </div>
+          <div class="panel-body">
+            <div class="warning-grid">
+              <div class="warning"><strong style="color:var(--red)">3</strong><span>已過期<br>不可銷售，需立即處理</span></div>
+              <div class="warning"><strong style="color:var(--red)">9</strong><span>90 天內到期<br>優先促銷或調貨</span></div>
+              <div class="warning"><strong style="color:var(--orange)">18</strong><span>180 天內到期<br>列入每週追蹤</span></div>
+              <div class="warning"><strong style="color:var(--amber)">42</strong><span>一年內到期<br>提早規劃銷售節奏</span></div>
+              <div class="warning"><strong style="color:var(--violet)">11</strong><span>效期空白<br>需補登效期資料</span></div>
+            </div>
+            <div style="height:16px"></div>
+            <div class="toolbar">
+              <input type="search" placeholder="搜尋商品名稱、產品貨號、類別">
+              <select>
+                <option>全部效期狀態</option>
+                <option>已過期</option>
+                <option>90 天內</option>
+                <option>180 天內</option>
+                <option>一年內</option>
+                <option>效期空白</option>
+              </select>
+              <select>
+                <option>A-J 系列優先</option>
+                <option>只看D系列</option>
+                <option>只看A系列</option>
+                <option>全部品項</option>
+              </select>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>產品貨號</th>
+                    <th>商品名稱</th>
+                    <th>類別</th>
+                    <th>庫存</th>
+                    <th>最近效期</th>
+                    <th>狀態</th>
+                    <th>處理建議</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>N0030004</td>
+                    <td>力增飲｜即飲營養補充品 原味</td>
+                    <td><span class="pill teal">D系列 營養奶水、粉</span></td>
+                    <td>8</td>
+                    <td>2026-07-20</td>
+                    <td><span class="pill red">90 天內</span></td>
+                    <td>優先確認批次，安排前排銷售</td>
+                  </tr>
+                  <tr>
+                    <td>N0020012</td>
+                    <td>補體素｜高蛋白營養品 香草口味</td>
+                    <td><span class="pill teal">D系列 營養奶水、粉</span></td>
+                    <td>16</td>
+                    <td>2026-09-30</td>
+                    <td><span class="pill orange">180 天內</span></td>
+                    <td>列入每週追蹤</td>
+                  </tr>
+                  <tr>
+                    <td>A0060014</td>
+                    <td>大漢酵素｜閃眠孅蔬酵粉 1盒30包</td>
+                    <td><span class="pill green">A系列 保健食品</span></td>
+                    <td>21</td>
+                    <td>2027-02-28</td>
+                    <td><span class="pill amber">一年內</span></td>
+                    <td>下次盤點優先度提高</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="products" class="section">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">庫存總覽</h2>
+              <div class="panel-subtitle">產品主檔會參考蝦皮獲利計算表，再補上類別、盤點優先級、安全庫存與效期批次。</div>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="toolbar">
+              <input id="productSearchInput" type="search" placeholder="搜尋貨號或商品名稱">
+              <select id="productCategoryFilter">
+                <option>全部系列</option>
+                <option>A系列 保健食品</option>
+                <option>B系列 口罩</option>
+                <option>C系列 醫療器材</option>
+                <option>D系列 營養奶水、粉</option>
+                <option>E系列 母嬰/玩具</option>
+                <option>F系列 生活用品</option>
+                <option>G系列 3C用品</option>
+                <option>H系列 醫美藥妝</option>
+                <option>I系列 美食/伴手禮</option>
+                <option>J系列 兩性用品</option>
+              </select>
+              <select>
+                <option>全部盤點狀態</option>
+                <option>需盤點</option>
+                <option>已完成</option>
+                <option>庫存異常</option>
+              </select>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>產品貨號</th>
+                    <th>商品名稱</th>
+                    <th>大類</th>
+                    <th>成本</th>
+                    <th>售價</th>
+                    <th>現有庫存</th>
+                    <th>安全庫存</th>
+                    <th>最近效期</th>
+                    <th>上次盤點</th>
+                  </tr>
+                </thead>
+                <tbody id="productTableBody">
+                  <tr>
+                    <td colspan="9">正在載入商品資料...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="calendar" class="section">
+        <div class="grid">
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">盤點行事曆</h2>
+                <div class="panel-subtitle">預先安排哪一天要盤哪個系列或指定商品，當天首頁會優先顯示行事曆任務。</div>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="toolbar">
+                <input id="calendarDateInput" type="date">
+                <select id="calendarCategoryInput">
+                  <option>A系列 保健食品</option>
+                  <option>B系列 口罩</option>
+                  <option>C系列 醫療器材</option>
+                  <option>D系列 營養奶水、粉</option>
+                  <option>E系列 母嬰/玩具</option>
+                  <option>F系列 生活用品</option>
+                  <option>G系列 3C用品</option>
+                  <option>H系列 醫美藥妝</option>
+                  <option>I系列 美食/伴手禮</option>
+                  <option>J系列 兩性用品</option>
+                </select>
+                <button class="btn primary" id="calendarSaveBtn" type="button">新增安排</button>
+              </div>
+              <div class="toolbar">
+                <input id="calendarProductSearchInput" type="search" placeholder="搜尋品名或貨號">
+                <select id="calendarProductSelect">
+                  <option value="">整個類別，不指定單品</option>
+                </select>
+              </div>
+              <div class="toolbar">
+                <input id="calendarSkuInput" type="search" placeholder="或直接輸入產品貨號，可留空">
+                <input id="calendarNoteInput" type="text" placeholder="備註，例如先盤奶水區、口罩倉庫、低庫存品">
+              </div>
+              <div class="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>日期</th>
+                      <th>盤點類別</th>
+                      <th>產品貨號</th>
+                      <th>商品名稱</th>
+                      <th>安排原因</th>
+                      <th>狀態</th>
+                      <th>備註</th>
+                    </tr>
+                  </thead>
+                  <tbody id="calendarTableBody">
+                    <tr><td colspan="7">正在載入行事曆...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">分類規則</h2>
+                <div class="panel-subtitle">依產品貨號第一碼分類。</div>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="formula">A系列 保健食品<br>B系列 口罩<br>C系列 醫療器材<br>D系列 營養奶水、粉<br>E系列 母嬰/玩具<br>F系列 生活用品<br>G系列 3C用品<br>H系列 醫美藥妝<br>I系列 美食/伴手禮<br>J系列 兩性用品</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="plan" class="section">
+        <div class="grid">
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">執行步驟</h2>
+                <div class="panel-subtitle">資料來源已確認，下一步是匯入 Google Sheet 並部署 Apps Script API。</div>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="timeline">
+                <div class="step">
+                  <div class="step-num">1</div>
+                  <div>
+                    <h3>建立資料快照</h3>
+                    <p>從蝦皮獲利表、每日入庫清單、AjinERP 庫存盤點表輸出標準 CSV，先核對筆數與欄位再匯入。</p>
+                  </div>
+                </div>
+                <div class="step">
+                  <div class="step-num">2</div>
+                  <div>
+                    <h3>匯入 Google Sheet 資料庫</h3>
+                    <p>使用 products、inventory、expiry_lots、daily_checks 四張核心表；效期批號先保留人工補登欄位。</p>
+                  </div>
+                </div>
+                <div class="step">
+                  <div class="step-num">3</div>
+                  <div>
+                    <h3>部署 Apps Script API</h3>
+                    <p>提供首頁資料、商品查詢、今日盤點、手動同步與盤點回寫，讓前端可以讀寫 Google Sheet。</p>
+                  </div>
+                </div>
+                <div class="step">
+                  <div class="step-num">4</div>
+                  <div>
+                    <h3>改接正式資料</h3>
+                    <p>把目前畫面上的示範資料改為 API 回傳資料；若尚未部署網址，畫面會保留示範資料作為備援。</p>
+                  </div>
+                </div>
+                <div class="step">
+                  <div class="step-num">5</div>
+                  <div>
+                    <h3>手機與門市測試</h3>
+                    <p>確認每天 2 個類別、約 10 個 SKU 的盤點清單正確產生，盤點回寫後能更新庫存與最後盤點日。</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">資料表規劃</h2>
+                <div class="panel-subtitle">第一版必要分頁。</div>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="formula">
+                <strong>產品主檔</strong><br>
+                產品貨號、商品名稱、A-J系列分類、成本、售價、商品大類、盤點優先級、盤點頻率、安全庫存、是否啟用盤點。
+              </div>
+              <div style="height:10px"></div>
+              <div class="formula">
+                <strong>庫存現況 / 效期批次</strong><br>
+                產品貨號、現有庫存、最近效期、批次效期、批次數量、儲位、最後盤點日、效期狀態。
+              </div>
+              <div style="height:10px"></div>
+              <div class="formula">
+                <strong>每日盤點任務 / 盤點紀錄</strong><br>
+                日期、盤點類別、產品貨號、安排原因、實際庫存、效期、狀態、備註、填寫人、送出時間。
+              </div>
+              <div style="height:10px"></div>
+              <div class="formula">
+                <strong>目前資料來源</strong><br>
+                商品主檔：蝦皮獲利計算表_含稅版_updated.xlsx；庫存同步：產品進貨單 / 庫存盤點表；每日入庫：產品進貨單底下各供應商入庫清單。效期批號需另由進貨單或人工效期表補齊。
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyEd6omJ-zKD_qwqh9b3T7QFqPbnnQ4TWhwkSLKp6cE_fPR8r22TQOHhD8bqzHk-cmw/exec";
+    const tabButtons = document.querySelectorAll(".nav button");
+    const sections = document.querySelectorAll(".section");
+
+    tabButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const target = button.dataset.tab;
+        tabButtons.forEach((item) => item.classList.remove("active"));
+        sections.forEach((section) => section.classList.remove("active"));
+        button.classList.add("active");
+        document.getElementById(target).classList.add("active");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    });
+
+    async function callApi(action, params = {}) {
+      if (!APPS_SCRIPT_WEB_APP_URL) {
+        throw new Error("尚未設定 Apps Script Web App URL");
+      }
+      const url = new URL(APPS_SCRIPT_WEB_APP_URL);
+      url.searchParams.set("action", action);
+      Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
+      const res = await fetch(url.toString());
+      if (!res.ok) throw new Error("API 連線失敗");
+      return res.json();
+    }
+
+    async function postApi(payload) {
+      const res = await fetch(APPS_SCRIPT_WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("API 寫入失敗");
+      return res.json();
+    }
+
+    async function loadDashboardFromApi() {
+      if (!APPS_SCRIPT_WEB_APP_URL) return;
+      try {
+        const data = await callApi("getDashboard");
+        const values = document.querySelectorAll(".metric-value");
+        if (values[0]) values[0].textContent = `${data.metrics.todayTasks - data.metrics.pendingTasks} / ${data.metrics.todayTasks}`;
+        if (values[1]) {
+          const done = data.metrics.expiryFilledRows || 0;
+          const total = data.metrics.stockPositiveRows || 0;
+          values[1].textContent = total ? `${Math.round(done / total * 100)}%` : "0%";
+        }
+        if (values[2]) values[2].textContent = data.metrics.expiryBlankRows;
+        if (values[3]) values[3].textContent = data.metrics.lowStockRows;
+        renderExpiryPreview(data.expiryBlankPreview || []);
+        renderTodayTasks(data.todayTasks || []);
+      } catch (err) {
+        console.warn(err);
+      }
+    }
+
+    function money(value) {
+      if (value === "" || value == null) return "-";
+      const num = Number(value);
+      return Number.isFinite(num) ? `$${num.toLocaleString("zh-TW")}` : value;
+    }
+
+    function pillClass(text) {
+      if (!text) return "";
+      if (String(text).includes("D系列")) return "teal";
+      if (String(text).includes("A系列") || String(text).includes("I系列")) return "green";
+      if (String(text).includes("B系列")) return "blue";
+      if (String(text).includes("C系列")) return "violet";
+      return "";
+    }
+
+    function seriesCategory(sku, fallback = "未分類") {
+      const map = {
+        A: ["A系列 保健食品", "保健食品"],
+        B: ["B系列 口罩", "口罩"],
+        C: ["C系列 醫療器材", "醫療器材"],
+        D: ["D系列 營養奶水、粉", "營養奶水、粉"],
+        E: ["E系列 母嬰/玩具", "母嬰/玩具"],
+        F: ["F系列 生活用品", "生活用品"],
+        G: ["G系列 3C用品", "3C用品"],
+        H: ["H系列 醫美藥妝", "醫美藥妝"],
+        I: ["I系列 美食/伴手禮", "美食/伴手禮"],
+        J: ["J系列 兩性用品", "兩性用品"],
+      };
+      const key = String(sku || "").trim().slice(0, 1).toUpperCase();
+      return map[key]?.[0] || fallback;
+    }
+
+    async function renderTodayTasks(tasks) {
+      const list = document.getElementById("todayTaskList");
+      if (!list) return;
+      if (!tasks.length) {
+        list.innerHTML = `<article class="task"><div><h3>今日尚未安排盤點</h3><div class="meta"><span class="pill">可到盤點行事曆新增安排</span></div></div></article>`;
+        return;
+      }
+      const cards = await Promise.all(tasks.slice(0, 2).map(async (task) => {
+        const category = task["盤點類別"] || task.category || "未分類";
+        let items = [];
+        try {
+          items = await callApi("getExpiryBlank", { category, limit: 8 });
+        } catch (err) {
+          console.warn(err);
+        }
+        const rows = items.length ? items.map((item) => `
+          <div class="check-row" data-sku="${item["產品貨號"] || ""}" data-category="${category}">
+            <div class="check-product">
+              <div class="check-sku">${item["產品貨號"] || ""}</div>
+              <div class="check-name">${item["商品名稱"] || ""}</div>
+            </div>
+            <div class="check-field">
+              <span>系統庫存</span>
+              <strong>${item["批次庫存"] ?? ""}</strong>
+            </div>
+            <label class="check-field">
+              <span>實際庫存</span>
+              <input class="actual-input" type="number" min="0" value="${item["批次庫存"] ?? ""}">
+            </label>
+            <label class="check-field">
+              <span>效期</span>
+              <input class="expiry-input" type="date">
+            </label>
+            <button class="btn primary save-check-row" type="button">確認儲存</button>
+          </div>
+        `).join("") : `<div class="check-row"><div class="check-product"><div class="check-name">這個類別暫無待補效期商品</div></div></div>`;
+        return `
+          <article class="task">
+            <div>
+              <h3>${category}</h3>
+              <div class="meta">
+                <span class="pill ${pillClass(category)}">${category}</span>
+                <span class="pill">${task["安排原因"] || "今日盤點"}</span>
+              </div>
+            </div>
+            <span class="pill orange">${task["狀態"] || "待盤點"}</span>
+            <div class="check-items">${rows}</div>
+          </article>
+        `;
+      }));
+      list.innerHTML = cards.join("");
+      list.querySelectorAll(".save-check-row").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const row = button.closest(".check-row");
+          const sku = row.dataset.sku;
+          const expiry = row.querySelector(".expiry-input").value;
+          const actualQty = row.querySelector(".actual-input").value;
+          if (!confirm(`確認儲存 ${sku} 的實際庫存與效期？`)) return;
+          try {
+            await postApi({
+              action: "saveCheck",
+              sku,
+              category: row.dataset.category,
+              actual_qty: actualQty,
+              expiry,
+              status: expiry ? "效期已補" : "已盤點正常",
+            });
+            button.textContent = "已儲存";
+            button.disabled = true;
+          } catch (err) {
+            alert(err.message);
+          }
+        });
+      });
+    }
+
+    function renderProductRows(rows) {
+      const tbody = document.getElementById("productTableBody");
+      if (!tbody) return;
+      if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="9">沒有符合條件的商品</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = rows.map((item) => {
+        const category = seriesCategory(item.sku, item.category || item.big_category || "未分類");
+        return `
+          <tr>
+            <td>${item.sku || ""}</td>
+            <td>${item.product_name || ""}</td>
+            <td><span class="pill ${pillClass(category)}">${category}</span></td>
+            <td>${money(item.cost)}</td>
+            <td>${money(item.price)}</td>
+            <td>${item.stock_total ?? ""}</td>
+            <td>-</td>
+            <td>${item.expiry || "待補效期"}</td>
+            <td>${item.expiry_status || "待補效期"}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function renderExpiryPreview(rows) {
+      const table = document.querySelector("#expiry tbody");
+      if (!table || !rows.length) return;
+      table.innerHTML = rows.slice(0, 80).map((item) => `
+        <tr>
+          <td>${item["產品貨號"] || ""}</td>
+          <td>${item["商品名稱"] || ""}</td>
+          <td><span class="pill ${pillClass(item["盤點類別"])}">${item["盤點類別"] || "未分類"}</span></td>
+          <td>${item["批次庫存"] ?? ""}</td>
+          <td>${item["效期"] || "待補效期"}</td>
+          <td><span class="pill violet">待補效期</span></td>
+          <td>重新盤點時補登效期</td>
+        </tr>
+      `).join("");
+    }
+
+    async function loadProductsFromApi(query = "") {
+      const tbody = document.getElementById("productTableBody");
+      if (tbody) tbody.innerHTML = `<tr><td colspan="9">正在載入商品資料...</td></tr>`;
+      try {
+        const rows = await callApi("searchProducts", { q: query, limit: 5000 });
+        const categoryFilter = document.getElementById("productCategoryFilter")?.value || "全部系列";
+        const filtered = categoryFilter === "全部系列"
+          ? rows
+          : rows.filter((item) => seriesCategory(item.sku, item.category || item.big_category || "未分類") === categoryFilter);
+        renderProductRows(filtered);
+      } catch (err) {
+        if (tbody) tbody.innerHTML = `<tr><td colspan="9">${err.message}</td></tr>`;
+        console.warn(err);
+      }
+    }
+
+    async function loadCalendarProductOptions() {
+      const select = document.getElementById("calendarProductSelect");
+      if (!select) return;
+      const category = document.getElementById("calendarCategoryInput")?.value || "";
+      const query = document.getElementById("calendarProductSearchInput")?.value.trim() || "";
+      select.innerHTML = `<option value="">整個類別，不指定單品</option>`;
+      try {
+        const rows = await callApi("searchProducts", { q: query, limit: 5000 });
+        const filtered = rows
+          .filter((item) => seriesCategory(item.sku, item.category || item.big_category || "未分類") === category)
+          .slice(0, 250);
+        filtered.forEach((item) => {
+          const option = document.createElement("option");
+          option.value = item.sku || "";
+          option.textContent = `${item.sku || ""}｜${item.product_name || ""}`;
+          option.dataset.name = item.product_name || "";
+          select.appendChild(option);
+        });
+      } catch (err) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = err.message;
+        select.appendChild(option);
+      }
+    }
+
+    function renderCalendar(rows) {
+      const tbody = document.getElementById("calendarTableBody");
+      if (!tbody) return;
+      if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="7">尚未安排盤點行事曆</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = rows.map((row) => `
+        <tr>
+          <td>${String(row["日期"] || "").slice(0, 10)}</td>
+          <td><span class="pill ${pillClass(row["盤點類別"])}">${row["盤點類別"] || ""}</span></td>
+          <td>${row["產品貨號"] || ""}</td>
+          <td>${row["商品名稱"] || ""}</td>
+          <td>${row["安排原因"] || ""}</td>
+          <td><span class="pill orange">${row["狀態"] || "待盤點"}</span></td>
+          <td>${row["備註"] || ""}</td>
+        </tr>
+      `).join("");
+    }
+
+    async function loadCalendar() {
+      try {
+        const rows = await callApi("getCalendar");
+        renderCalendar(rows);
+      } catch (err) {
+        const tbody = document.getElementById("calendarTableBody");
+        if (tbody) tbody.innerHTML = `<tr><td colspan="7">${err.message}</td></tr>`;
+      }
+    }
+
+    async function saveCalendarItem() {
+      const date = document.getElementById("calendarDateInput").value;
+      const category = document.getElementById("calendarCategoryInput").value;
+      const selected = document.getElementById("calendarProductSelect");
+      const selectedSku = selected?.value || "";
+      const selectedName = selected?.selectedOptions?.[0]?.dataset?.name || "";
+      const sku = document.getElementById("calendarSkuInput").value.trim() || selectedSku;
+      const notes = document.getElementById("calendarNoteInput").value.trim();
+      if (!date) {
+        alert("請先選擇日期");
+        return;
+      }
+      if (!confirm(`確認新增 ${date} 的盤點安排？`)) return;
+      await postApi({
+        action: "saveCalendar",
+        date,
+        category,
+        sku,
+        product_name: selectedName,
+        reason: sku ? "指定商品盤點" : "行事曆預排",
+        notes,
+      });
+      await loadCalendar();
+    }
+
+    document.getElementById("syncBtn").addEventListener("click", async () => {
+      try {
+        await callApi("sync");
+        await loadDashboardFromApi();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    document.getElementById("saveBtn").addEventListener("click", () => {
+      alert(APPS_SCRIPT_WEB_APP_URL
+        ? "盤點回寫 API 已就緒，正式版會逐列送出今日盤點結果。"
+        : "尚未設定 Apps Script Web App URL，目前保留示範資料。");
+    });
+
+    const productSearchInput = document.getElementById("productSearchInput");
+    const productCategoryFilter = document.getElementById("productCategoryFilter");
+    let productSearchTimer;
+    productSearchInput?.addEventListener("input", () => {
+      clearTimeout(productSearchTimer);
+      productSearchTimer = setTimeout(() => loadProductsFromApi(productSearchInput.value.trim()), 350);
+    });
+    productCategoryFilter?.addEventListener("change", () => loadProductsFromApi(productSearchInput?.value.trim() || ""));
+    document.getElementById("calendarCategoryInput")?.addEventListener("change", loadCalendarProductOptions);
+    let calendarProductSearchTimer;
+    document.getElementById("calendarProductSearchInput")?.addEventListener("input", () => {
+      clearTimeout(calendarProductSearchTimer);
+      calendarProductSearchTimer = setTimeout(loadCalendarProductOptions, 350);
+    });
+    document.getElementById("calendarProductSelect")?.addEventListener("change", (event) => {
+      const input = document.getElementById("calendarSkuInput");
+      if (input && event.target.value) input.value = event.target.value;
+    });
+    document.getElementById("calendarSaveBtn")?.addEventListener("click", () => {
+      saveCalendarItem().catch((err) => alert(err.message));
+    });
+    document.getElementById("calendarDateInput").value = new Date().toISOString().slice(0, 10);
+
+    loadDashboardFromApi();
+    loadProductsFromApi();
+    loadCalendarProductOptions();
+    loadCalendar();
+  </script>
+</body>
+</html>
