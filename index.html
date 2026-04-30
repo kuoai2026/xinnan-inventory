@@ -439,6 +439,32 @@
       color: var(--ink);
     }
 
+    .batch-list {
+      grid-column: 1 / -1;
+      display: grid;
+      gap: 8px;
+    }
+
+    .batch-row {
+      display: grid;
+      grid-template-columns: 132px 148px minmax(150px, auto);
+      gap: 10px;
+      align-items: end;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #ffffff;
+    }
+
+    .batch-row.extra-batch {
+      background: #f0f7ff;
+      border-color: #bfdbfe;
+    }
+
+    .add-batch-btn {
+      justify-self: start;
+    }
+
     label {
       display: grid;
       gap: 6px;
@@ -900,6 +926,13 @@
       .check-field strong {
         min-height: auto;
       }
+      .batch-list,
+      .batch-row {
+        grid-template-columns: 1fr;
+      }
+      .add-batch-btn {
+        width: 100%;
+      }
       .check-name,
       .check-sku {
         overflow-wrap: anywhere;
@@ -1014,7 +1047,7 @@
             <div class="panel-body">
               <div class="formula">
                 <strong>每日類別優先順序</strong><br>
-                首頁採互斥顯示：若當日行事曆已有指定或預排商品，只顯示指定盤點；若當日沒有排程，系統依日期從 A-J 抽 1 類，再抽 10 個貨號。
+                首頁採互斥顯示：若當日行事曆已有指定或預排商品，只顯示指定盤點；若當日沒有排程，系統依日期從商品名稱前段判斷品牌，隨機抽 2 個品牌的全部商品。若抽到口罩品項，當天只抽 1 個口罩品牌的全部商品。
               </div>
             </div>
           </div>
@@ -1291,7 +1324,7 @@
   </div>
 
   <script>
-    const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbywRfdNSWKpqgDk1CSo4w0fvDGT1if2pPZimpuE2yO1S6kNZb4ETMNNad9UeEBlMlqq/exec";
+    const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwY6dN7ImsP5cdhbExl_7Fc_X7-T4XSyrIwY80MgqPIy1XCWj3HzP79yLmo3KC7eLQ/exec";
     const SERIES_OPTIONS = [
       "A系列 保健食品",
       "B系列 口罩",
@@ -1456,6 +1489,66 @@
       return item.expiry || item["效期"] || "";
     }
 
+    function isNoExpiryValue(value) {
+      const text = String(value || "").trim();
+      return text === "無效期" || text === "無有效期限" || text === "此商品無效期";
+    }
+
+    function isNoExpiryItem(item) {
+      return Boolean(item.no_expiry || item["無效期"] || isNoExpiryValue(expiryOf(item)) || String(item.expiry_status || item["效期狀態"] || "").includes("無效期"));
+    }
+
+    function escapeAttr(value) {
+      return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+    }
+
+    function batchRowHtml({ qty = "", expiry = "", noExpiry = false, extra = false } = {}) {
+      return `
+        <div class="batch-row ${extra ? "extra-batch" : ""}">
+          <label class="check-field">
+            <span>批次庫存</span>
+            <input class="batch-qty-input" type="number" min="0" value="${qty}">
+          </label>
+          <label class="check-field">
+            <span>批次效期</span>
+            <input class="batch-expiry-input" type="date" value="${dateInputValue(expiry)}" ${noExpiry ? "disabled" : ""}>
+          </label>
+          <label class="inline-check">
+            <input class="batch-no-expiry-input" type="checkbox" ${noExpiry ? "checked" : ""}>
+            此商品無效期
+          </label>
+        </div>
+      `;
+    }
+
+    function bindNoExpiryToggle(scope) {
+      scope.querySelectorAll(".batch-no-expiry-input").forEach((checkbox) => {
+        checkbox.addEventListener("change", () => {
+          const row = checkbox.closest(".batch-row");
+          const dateInput = row.querySelector(".batch-expiry-input");
+          dateInput.disabled = checkbox.checked;
+          if (checkbox.checked) dateInput.value = "";
+        });
+      });
+    }
+
+    function collectBatchRows(scope) {
+      return [...scope.querySelectorAll(".batch-row")].map((row) => {
+        const noExpiry = row.querySelector(".batch-no-expiry-input").checked;
+        const expiry = row.querySelector(".batch-expiry-input").value;
+        const qty = row.querySelector(".batch-qty-input").value;
+        return {
+          qty,
+          expiry: noExpiry ? "無效期" : expiry,
+          no_expiry: noExpiry,
+        };
+      }).filter((batch) => batch.qty !== "" || batch.expiry || batch.no_expiry);
+    }
+
     function assigneeName() {
       const saved = localStorage.getItem("xinnanInventoryAssignee") || "";
       const name = prompt("請輸入盤點人姓名，填寫後才會儲存盤點紀錄。", saved);
@@ -1515,16 +1608,58 @@
         .sort((a, b) => compareSku(skuOf(a), skuOf(b)));
     }
 
+    function brandOfProduct(item) {
+      const name = nameOf(item).trim();
+      if (!name) return skuOf(item).slice(0, 4) || "未命名品牌";
+      const normalized = name
+        .replace(/^[【\[][^】\]]+[】\]]\s*/g, "")
+        .replace(/^(單罐|單顆|單入|盒裝|箱裝|現貨|公司貨)\s*/g, "")
+        .trim();
+      const separators = ["｜", "|", " ", "　", "／", "/", "-", "–", "_"];
+      let cut = normalized.length;
+      separators.forEach((sep) => {
+        const index = normalized.indexOf(sep);
+        if (index > 0) cut = Math.min(cut, index);
+      });
+      const compactMatch = normalized.match(/^([A-Za-z0-9]+|[\u4e00-\u9fff]{2,6})/);
+      return (compactMatch?.[1] || normalized.slice(0, cut) || name).slice(0, 12);
+    }
+
+    function isMaskProduct(item) {
+      return categoryOfProduct(item).includes("口罩") || nameOf(item).includes("口罩");
+    }
+
+    function brandGroups() {
+      const groups = new Map();
+      productCache.forEach((item) => {
+        const brand = brandOfProduct(item);
+        if (!groups.has(brand)) groups.set(brand, []);
+        groups.get(brand).push(item);
+      });
+      return [...groups.entries()].map(([brand, rows]) => ({
+        brand,
+        rows: rows.sort((a, b) => compareSku(skuOf(a), skuOf(b))),
+        isMask: rows.some(isMaskProduct),
+      })).filter((group) => group.rows.length);
+    }
+
     function assignedRowsForDate(date) {
       return calendarCache.filter((row) => formatDateValue(row["日期"] || row.date) === date);
     }
 
     function randomRowsForDate(date) {
-      const availableCategories = SERIES_OPTIONS.filter((category) => rowsForCategory(category).length);
-      const category = availableCategories[dateHash(date) % Math.max(availableCategories.length, 1)] || SERIES_OPTIONS[0];
+      const groups = brandGroups()
+        .map((group) => ({ ...group, sort: seededRandom(dateHash(`${date}-${group.brand}`))() }))
+        .sort((a, b) => a.sort - b.sort);
+      const first = groups[0];
+      if (!first) return { category: "今日隨機盤點", rows: [] };
+      const selected = first.isMask
+        ? [first]
+        : [first, ...groups.filter((group) => !group.isMask && group.brand !== first.brand)].slice(0, 2);
+      const rows = selected.flatMap((group) => group.rows);
       return {
-        category,
-        rows: deterministicSample(rowsForCategory(category), 10, `${date}-${category}`),
+        category: `品牌盤點：${selected.map((group) => group.brand).join("、")}`,
+        rows,
       };
     }
 
@@ -1585,7 +1720,7 @@
           items = rowsForCategory(category).slice(0, mode === "random" ? 10 : 80);
         }
         const rows = items.length ? items.map((item) => `
-          <div class="check-row" data-sku="${skuOf(item)}" data-category="${category}">
+          <div class="check-row" data-sku="${escapeAttr(skuOf(item))}" data-category="${escapeAttr(category)}" data-product-name="${escapeAttr(nameOf(item))}">
             <div class="check-product">
               <div class="check-sku">${skuOf(item)}</div>
               <div class="check-name">${nameOf(item)}</div>
@@ -1598,10 +1733,10 @@
               <span>實際庫存</span>
               <input class="actual-input" type="number" min="0" value="${stockOf(item)}">
             </label>
-            <label class="check-field">
-              <span>效期</span>
-              <input class="expiry-input" type="date" value="${dateInputValue(expiryOf(item))}">
-            </label>
+            <div class="batch-list">
+              ${batchRowHtml({ qty: stockOf(item), expiry: expiryOf(item), noExpiry: isNoExpiryItem(item) })}
+              <button class="btn add-batch-btn" type="button">+ 新增另一批庫存及效期</button>
+            </div>
             <button class="btn primary save-check-row" type="button">確認儲存</button>
           </div>
         `).join("") : `<div class="check-row"><div class="check-product"><div class="check-name">這個類別暫無待補效期商品</div></div></div>`;
@@ -1621,12 +1756,28 @@
         `;
       }));
       list.innerHTML = cards.join("");
+      bindNoExpiryToggle(list);
+      list.querySelectorAll(".add-batch-btn").forEach((button) => {
+        button.addEventListener("click", () => {
+          button.insertAdjacentHTML("beforebegin", batchRowHtml({ extra: true }));
+          bindNoExpiryToggle(button.closest(".batch-list"));
+        });
+      });
       list.querySelectorAll(".save-check-row").forEach((button) => {
         button.addEventListener("click", async () => {
           const row = button.closest(".check-row");
           const sku = row.dataset.sku;
-          const expiry = row.querySelector(".expiry-input").value;
           const actualQty = row.querySelector(".actual-input").value;
+          const batches = collectBatchRows(row);
+          if (!batches.length) {
+            alert("請至少填寫一筆批次庫存與效期，或勾選此商品無效期。");
+            return;
+          }
+          const missingExpiry = batches.some((batch) => !batch.no_expiry && !batch.expiry);
+          if (missingExpiry) {
+            alert("請填寫每一批效期，或勾選此商品無效期。");
+            return;
+          }
           const assignee = assigneeName();
           if (!assignee) return;
           if (!confirm(`確認儲存 ${sku} 的實際庫存與效期？`)) return;
@@ -1635,9 +1786,12 @@
               action: "saveCheck",
               sku,
               category: row.dataset.category,
+              product_name: row.dataset.productName,
               actual_qty: actualQty,
-              expiry,
-              status: expiry ? "效期已補" : "已盤點正常",
+              expiry: batches[0]?.expiry || "",
+              no_expiry: batches[0]?.no_expiry || false,
+              batches,
+              status: batches.some((batch) => batch.no_expiry) ? "無效期" : "效期已補",
               assignee,
               "填寫人": assignee,
             });
@@ -1676,7 +1830,7 @@
             <div class="mobile-card-line"><span>貨號</span><span>${skuOf(item)}</span></div>
             <div class="mobile-card-line"><span>大類</span><span>${category}</span></div>
             <div class="mobile-card-line"><span>庫存</span><span>${item.stock_total ?? ""}</span></div>
-            <div class="mobile-card-line"><span>最近效期</span><span>${item.expiry || "待補效期"}</span></div>
+            <div class="mobile-card-line"><span>最近效期</span><span>${isNoExpiryItem(item) ? "無效期" : (item.expiry || "待補效期")}</span></div>
           </article>
         `;
       }, "沒有符合條件的商品");
@@ -1691,19 +1845,18 @@
             <td>${money(item.price)}</td>
             <td>${item.stock_total ?? ""}</td>
             <td>-</td>
-            <td>${item.expiry || "待補效期"}</td>
-            <td>${item.expiry_status || "待補效期"}</td>
+            <td>${isNoExpiryItem(item) ? "無效期" : (item.expiry || "待補效期")}</td>
+            <td>${isNoExpiryItem(item) ? "無效期" : (item.expiry_status || "待補效期")}</td>
             <td><button class="btn edit-expiry-btn" type="button" data-sku="${skuOf(item)}">修改效期</button></td>
           </tr>
           <tr class="expiry-edit-row" data-editor-for="${skuOf(item)}" hidden>
             <td colspan="10">
-              <div class="expiry-editor">
+              <div class="expiry-editor" data-product-name="${escapeAttr(nameOf(item))}" data-category="${escapeAttr(category)}">
                 <strong>${skuOf(item)}</strong>
-                <input class="product-expiry-input" type="date" value="${dateInputValue(expiryOf(item))}">
-                <label class="inline-check">
-                  <input class="no-expiry-input" type="checkbox">
-                  此商品無有效期限
-                </label>
+                <div class="batch-list">
+                  ${batchRowHtml({ qty: stockOf(item), expiry: expiryOf(item), noExpiry: isNoExpiryItem(item) })}
+                  <button class="btn add-batch-btn" type="button">+ 新增另一批庫存及效期</button>
+                </div>
                 <button class="btn primary save-expiry-btn" type="button" data-sku="${skuOf(item)}">儲存</button>
                 <span class="muted">儲存會呼叫 Apps Script action: updateExpiry</span>
               </div>
@@ -1716,6 +1869,7 @@
 
     function expiryStatus(item) {
       const value = expiryOf(item);
+      if (isNoExpiryItem(item)) return { key: "ok", label: "無效期", cls: "green", suggestion: "此商品不列入效期警示" };
       if (!value) return { key: "blank", label: "效期空白", cls: "violet", suggestion: "重新盤點時補登效期" };
       const date = new Date(value);
       if (Number.isNaN(date.getTime())) return { key: "blank", label: "效期格式待確認", cls: "violet", suggestion: "檢查效期格式" };
@@ -1768,7 +1922,7 @@
             <h3>${nameOf(item) || "未命名商品"}</h3>
             <div class="mobile-card-line"><span>貨號</span><span>${skuOf(item)}</span></div>
             <div class="mobile-card-line"><span>類別</span><span>${category}</span></div>
-            <div class="mobile-card-line"><span>效期</span><span>${expiryOf(item) || "待補效期"}</span></div>
+            <div class="mobile-card-line"><span>效期</span><span>${isNoExpiryItem(item) ? "無效期" : (expiryOf(item) || "待補效期")}</span></div>
             <div class="mobile-card-line"><span>狀態</span><span>${status.label}</span></div>
           </article>
         `;
@@ -1781,7 +1935,7 @@
           <td>${nameOf(item)}</td>
           <td><span class="pill ${pillClass(category)}">${category}</span></td>
           <td>${stockOf(item)}</td>
-          <td>${expiryOf(item) || "待補效期"}</td>
+          <td>${isNoExpiryItem(item) ? "無效期" : (expiryOf(item) || "待補效期")}</td>
           <td><span class="pill ${status.cls}">${status.label}</span></td>
           <td>${status.suggestion}</td>
         </tr>
@@ -1977,28 +2131,35 @@
           if (editor) editor.hidden = !editor.hidden;
         });
       });
-      document.querySelectorAll(".no-expiry-input").forEach((checkbox) => {
-        checkbox.addEventListener("change", () => {
-          const dateInput = checkbox.closest(".expiry-editor").querySelector(".product-expiry-input");
-          dateInput.disabled = checkbox.checked;
-          if (checkbox.checked) dateInput.value = "";
+      bindNoExpiryToggle(document);
+      document.querySelectorAll(".expiry-editor .add-batch-btn").forEach((button) => {
+        button.addEventListener("click", () => {
+          button.insertAdjacentHTML("beforebegin", batchRowHtml({ extra: true }));
+          bindNoExpiryToggle(button.closest(".batch-list"));
         });
       });
       document.querySelectorAll(".save-expiry-btn").forEach((button) => {
         button.addEventListener("click", async () => {
           const editor = button.closest(".expiry-editor");
-          const noExpiry = editor.querySelector(".no-expiry-input").checked;
-          const expiry = editor.querySelector(".product-expiry-input").value;
-          if (!noExpiry && !expiry) {
-            alert("請選擇效期，或勾選此商品無有效期限");
+          const batches = collectBatchRows(editor);
+          if (!batches.length) {
+            alert("請至少填寫一筆批次庫存與效期，或勾選此商品無效期");
+            return;
+          }
+          const missingExpiry = batches.some((batch) => !batch.no_expiry && !batch.expiry);
+          if (missingExpiry) {
+            alert("請填寫每一批效期，或勾選此商品無效期");
             return;
           }
           try {
             await postApi({
               action: "updateExpiry",
               sku: button.dataset.sku,
-              expiry,
-              no_expiry: noExpiry,
+              product_name: editor.dataset.productName || "",
+              category: editor.dataset.category || "",
+              expiry: batches[0]?.expiry || "",
+              no_expiry: batches[0]?.no_expiry || false,
+              batches,
             });
             button.textContent = "已儲存";
             await loadProductsFromApi(productSearchInput?.value.trim() || "");
