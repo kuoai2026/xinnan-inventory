@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>信男藥局｜庫存效期盤點系統原型</title>
+  <title>信男藥局 庫存盤點系統</title>
   <style>
     :root {
       --ink: #17202a;
@@ -22,13 +22,23 @@
       --radius: 8px;
     }
 
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+      font-size: max(12px, 1em);
+    }
+
+    html {
+      overflow-x: hidden;
+      background: var(--bg);
+    }
 
     body {
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Noto Sans TC", "Segoe UI", sans-serif;
+      font-size: 14px;
       background: var(--bg);
       color: var(--ink);
+      overflow-x: hidden;
     }
 
     button, input, select, textarea {
@@ -37,6 +47,7 @@
 
     .app {
       min-height: 100vh;
+      width: 100%;
       display: grid;
       grid-template-columns: 248px minmax(0, 1fr);
     }
@@ -48,6 +59,10 @@
       position: sticky;
       top: 0;
       height: 100vh;
+    }
+
+    .mobile-tab-label {
+      display: none;
     }
 
     .brand {
@@ -76,8 +91,7 @@
 
     .nav button {
       border: 0;
-      background: transparent;
-      color: #cbd5e1;
+      color: #ffffff;
       text-align: left;
       padding: 11px 12px;
       border-radius: 8px;
@@ -85,12 +99,20 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      min-height: 42px;
     }
+
+    .nav button[data-tab="dashboard"] { background: #1d4ed8; }
+    .nav button[data-tab="expiry"] { background: #b91c1c; }
+    .nav button[data-tab="products"] { background: #0f766e; }
+    .nav button[data-tab="calendar"] { background: #7c3aed; }
+    .nav button[data-tab="plan"] { background: #4b5563; }
 
     .nav button.active,
     .nav button:hover {
-      background: #1f2937;
+      filter: brightness(1.14);
       color: #ffffff;
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,.42);
     }
 
     .nav svg,
@@ -105,6 +127,10 @@
       padding: 22px;
     }
 
+    .mobile-hint {
+      display: none;
+    }
+
     .topbar {
       display: flex;
       align-items: flex-start;
@@ -115,9 +141,14 @@
 
     .eyebrow {
       color: var(--teal);
-      font-size: 13px;
       font-weight: 800;
       margin-bottom: 6px;
+    }
+
+    .today-label {
+      color: var(--muted);
+      font-weight: 760;
+      margin: 0 0 6px;
     }
 
     h1 {
@@ -176,7 +207,7 @@
 
     .metrics {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 12px;
       margin-bottom: 18px;
     }
@@ -195,7 +226,6 @@
       justify-content: space-between;
       gap: 10px;
       color: var(--muted);
-      font-size: 13px;
       margin-bottom: 12px;
     }
 
@@ -207,8 +237,11 @@
 
     .metric-note {
       color: var(--muted);
-      font-size: 13px;
       line-height: 1.5;
+    }
+
+    .mobile-table-cards {
+      display: none;
     }
 
     .grid {
@@ -243,7 +276,6 @@
 
     .panel-subtitle {
       color: var(--muted);
-      font-size: 13px;
       margin-top: 4px;
     }
 
@@ -285,7 +317,6 @@
       min-height: 24px;
       border-radius: 999px;
       padding: 3px 9px;
-      font-size: 12px;
       font-weight: 760;
       background: #eef2f7;
       color: #364152;
@@ -349,7 +380,6 @@
     }
 
     .category-items table {
-      font-size: 13px;
       min-width: 720px;
     }
 
@@ -381,7 +411,6 @@
 
     .check-sku {
       color: var(--muted);
-      font-size: 12px;
       font-weight: 800;
       margin-bottom: 4px;
     }
@@ -400,7 +429,6 @@
 
     .check-field span {
       color: var(--muted);
-      font-size: 12px;
       font-weight: 760;
     }
 
@@ -415,7 +443,6 @@
       display: grid;
       gap: 6px;
       color: var(--muted);
-      font-size: 12px;
       font-weight: 720;
     }
 
@@ -439,7 +466,6 @@
       align-items: center;
       gap: 7px;
       color: var(--muted);
-      font-size: 12px;
       font-weight: 720;
       white-space: nowrap;
     }
@@ -485,7 +511,6 @@
 
     .warning span {
       color: var(--muted);
-      font-size: 12px;
       line-height: 1.45;
       display: block;
     }
@@ -505,7 +530,6 @@
 
     th {
       color: #4b5563;
-      font-size: 12px;
       font-weight: 850;
       background: #f8fafc;
     }
@@ -551,7 +575,6 @@
 
     .muted {
       color: var(--muted);
-      font-size: 13px;
       line-height: 1.6;
     }
 
@@ -599,6 +622,25 @@
       font-size: 14px;
     }
 
+    .formula.blue-box {
+      background: #dbeafe;
+      border-color: #93c5fd;
+      color: #1e3a8a;
+    }
+
+    .toolbar.blue-actions {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: var(--radius);
+      padding: 10px;
+    }
+
+    .toolbar.blue-actions .btn {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: #fff;
+    }
+
     @media (max-width: 1080px) {
       .app { grid-template-columns: 1fr; }
       .sidebar {
@@ -609,9 +651,11 @@
         display: flex;
         overflow-x: auto;
         padding-bottom: 4px;
+        gap: 8px;
       }
       .nav button {
         white-space: nowrap;
+        flex: 0 0 auto;
       }
       .metrics,
       .warning-grid {
@@ -623,30 +667,245 @@
     }
 
     @media (max-width: 680px) {
-      main { padding: 14px; }
-      .topbar { display: grid; }
-      .actions { justify-content: flex-start; }
-      h1 { font-size: 23px; }
+      body {
+        font-size: 14px;
+      }
+      .app {
+        display: block;
+        width: 100%;
+        max-width: 100vw;
+      }
+      .sidebar {
+        padding: max(14px, env(safe-area-inset-top)) 12px 12px;
+        border-bottom: 1px solid rgba(255,255,255,.1);
+      }
+      .brand {
+        padding-bottom: 14px;
+        margin-bottom: 12px;
+      }
+      .brand-title {
+        font-size: 18px;
+        line-height: 1.35;
+      }
+      .brand-subtitle {
+        font-size: 14px;
+      }
+      .nav {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        overflow: visible;
+        padding-bottom: 0;
+        gap: 8px;
+      }
+      .nav button {
+        min-width: 0;
+        min-height: 58px;
+        padding: 8px 6px;
+        justify-content: center;
+        text-align: center;
+        flex-direction: column;
+        gap: 4px;
+        line-height: 1.2;
+        white-space: normal;
+      }
+      .nav button[data-tab="plan"] {
+        display: none;
+      }
+      .nav .icon svg {
+        width: 18px;
+        height: 18px;
+      }
+      main {
+        padding: 12px;
+        max-width: 100vw;
+      }
+      .topbar {
+        display: grid;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+      .eyebrow {
+        font-size: 13px;
+      }
+      h1 {
+        font-size: 22px;
+        line-height: 1.25;
+      }
+      .lead {
+        line-height: 1.6;
+        overflow-wrap: anywhere;
+      }
+      .actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        width: 100%;
+      }
+      .actions .btn {
+        width: 100%;
+        min-width: 0;
+      }
+      .btn {
+        min-height: 42px;
+        height: auto;
+        padding: 9px 10px;
+        white-space: normal;
+        line-height: 1.25;
+      }
       .metrics,
-      .warning-grid,
       .task-form {
         grid-template-columns: 1fr;
+      }
+      .metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .metric {
+        min-height: auto;
+        padding: 12px;
+      }
+      .metric:first-child {
+        grid-column: 1 / -1;
+      }
+      .metric-top {
+        display: grid;
+        gap: 6px;
+        margin-bottom: 8px;
+      }
+      .metric-value {
+        font-size: 24px;
+      }
+      .metric-note {
+        line-height: 1.45;
       }
       .wide { grid-column: auto; }
       .task {
         grid-template-columns: 1fr;
+        padding: 12px;
+      }
+      .panel-head {
+        display: grid;
+        align-items: start;
+        padding: 13px 12px;
+      }
+      .panel-head label,
+      .panel-head input,
+      .panel-head .btn {
+        width: 100%;
+      }
+      .panel-body {
+        padding: 12px;
+      }
+      .inner-tabs,
+      .filter-tabs {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .inner-tab,
+      .filter-tab {
+        border-radius: 8px;
+        min-height: 42px;
+        padding: 8px 6px;
+        white-space: normal;
+        line-height: 1.25;
+      }
+      .warning-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .warning {
+        padding: 11px;
+      }
+      .warning strong {
+        font-size: 21px;
+      }
+      .warning:last-child {
+        grid-column: 1 / -1;
+      }
+      .toolbar,
+      .toolbar.compact,
+      .toolbar.blue-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+      .toolbar input,
+      .toolbar select,
+      .toolbar .btn,
+      .toolbar.compact input {
+        width: 100%;
+        min-width: 0;
+      }
+      input, select, textarea {
+        min-height: 42px;
+      }
+      .formula {
+        line-height: 1.65;
+        overflow-wrap: anywhere;
       }
       table {
-        min-width: 760px;
+        min-width: 640px;
       }
       .table-scroll {
         overflow-x: auto;
+        max-width: 100%;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        -webkit-overflow-scrolling: touch;
+      }
+      .mobile-hint {
+        display: block;
+        color: var(--muted);
+        margin: 0 0 8px;
+      }
+      .mobile-table-cards {
+        display: grid;
+        gap: 10px;
+      }
+      .mobile-table-card {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: #fff;
+        padding: 12px;
+        display: grid;
+        gap: 8px;
+      }
+      .mobile-table-card h3 {
+        margin: 0;
+        font-size: 15px;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+      }
+      .mobile-card-line {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        line-height: 1.45;
+      }
+      .mobile-card-line span:first-child {
+        color: var(--muted);
+        font-weight: 760;
+      }
+      .mobile-card-line span:last-child {
+        text-align: right;
+        overflow-wrap: anywhere;
       }
       .check-row {
         grid-template-columns: 1fr;
+        padding: 11px;
+        gap: 9px;
+      }
+      .check-row .btn {
+        width: 100%;
       }
       .check-field strong {
         min-height: auto;
+      }
+      .check-name,
+      .check-sku {
+        overflow-wrap: anywhere;
+      }
+      .blue-actions .btn {
+        min-height: 44px;
       }
     }
   </style>
@@ -655,8 +914,8 @@
   <div class="app">
     <aside class="sidebar">
       <div class="brand">
-        <h2 class="brand-title">信男藥局</h2>
-        <div class="brand-subtitle">庫存效期盤點系統<br>Google Sheet Web App 原型</div>
+        <h2 class="brand-title">信男藥局 庫存盤點系統</h2>
+        <div class="brand-subtitle" id="todayLabel">載入日期...</div>
       </div>
 
       <nav class="nav" aria-label="主要功能">
@@ -686,9 +945,10 @@
     <main>
       <div class="topbar">
         <div>
-          <div class="eyebrow">每日依 A-J 系列安排盤點，效期全部重新補登</div>
-          <h1>庫存與效期盤點工作台</h1>
-          <p class="lead">用 Google Sheet 保存產品主檔、庫存現況、效期批次與盤點紀錄。第一版先串接蝦皮獲利表、每日入庫清單與 AjinERP 庫存盤點表，讓同仁每天完成高風險類別盤點。</p>
+          <div class="eyebrow">信男藥局 庫存盤點系統</div>
+          <h1>庫存盤點工作台</h1>
+          <div class="today-label" id="topTodayLabel">載入日期...</div>
+          <p class="lead">用 Google Sheet 保存產品主檔、庫存現況、效期批次與盤點紀錄，讓同仁每天完成庫存與效期盤點。</p>
         </div>
         <div class="actions">
           <button class="btn ghost" id="syncBtn" type="button">
@@ -708,11 +968,6 @@
             <div class="metric-top"><span>今日任務</span><span class="pill blue">2 類</span></div>
             <div class="metric-value">1 / 2</div>
             <div class="metric-note">已完成 1 個類別，剩餘 1 個類別待確認效期。</div>
-          </div>
-          <div class="metric">
-            <div class="metric-top"><span>D系列優先</span><span class="pill teal">高</span></div>
-            <div class="metric-value">68%</div>
-            <div class="metric-note">本週盤點任務以營養奶水、粉、口罩與保健食品系列為主。</div>
           </div>
           <div class="metric">
             <div class="metric-top"><span>一年內到期</span><span class="pill amber">新增</span></div>
@@ -753,18 +1008,13 @@
             <div class="panel-head">
               <div>
                 <h2 class="panel-title">排程規則</h2>
-                <div class="panel-subtitle">第一版建議先使用分數排序，後續再依銷售速度調整。</div>
+                <div class="panel-subtitle">沒有指定排程時，首頁會自動產生當日隨機盤點。</div>
               </div>
             </div>
             <div class="panel-body">
               <div class="formula">
                 <strong>每日類別優先順序</strong><br>
                 首頁採互斥顯示：若當日行事曆已有指定或預排商品，只顯示指定盤點；若當日沒有排程，系統依日期從 A-J 抽 1 類，再抽 10 個貨號。
-              </div>
-              <div style="height:12px"></div>
-              <div class="formula">
-                <strong>盤點類別範例</strong><br>
-                倍速全口味算一類，倍速益全部規格算一類，郡昱成人立體口罩各種顏色算一類；類別底下再展開產品貨號逐項填庫存與效期。
               </div>
             </div>
           </div>
@@ -776,7 +1026,7 @@
           <div class="panel-head">
             <div>
               <h2 class="panel-title">效期警示</h2>
-              <div class="panel-subtitle">目前效期全部重新盤點，這裡顯示待補效期商品。</div>
+              <div class="panel-subtitle">依目前商品效期即時計算狀態，點選狀態可查看符合條件的商品。</div>
             </div>
             <button class="btn" type="button">匯出清單</button>
           </div>
@@ -791,20 +1041,14 @@
             <div style="height:16px"></div>
             <div class="filter-tabs" aria-label="效期狀態篩選">
               <button class="filter-tab active" type="button" data-expiry-filter="expired">已過期</button>
-              <button class="filter-tab" type="button" data-expiry-filter="3m">3 個月內</button>
-              <button class="filter-tab" type="button" data-expiry-filter="6m">6 個月內</button>
+              <button class="filter-tab" type="button" data-expiry-filter="3m">90 天內</button>
+              <button class="filter-tab" type="button" data-expiry-filter="6m">180 天內</button>
               <button class="filter-tab" type="button" data-expiry-filter="1y">1 年內</button>
               <button class="filter-tab" type="button" data-expiry-filter="blank">效期空白</button>
               <button class="filter-tab" type="button" data-expiry-filter="all">全部警示</button>
             </div>
-            <div class="toolbar">
-              <select>
-                <option>A-J 系列優先</option>
-                <option>只看D系列</option>
-                <option>只看A系列</option>
-                <option>全部品項</option>
-              </select>
-            </div>
+            <div class="mobile-table-cards" id="expiryMobileCards"></div>
+            <p class="mobile-hint">表格可左右滑動查看完整欄位。</p>
             <div class="table-scroll">
               <table>
                 <thead>
@@ -860,6 +1104,8 @@
                 <option>庫存異常</option>
               </select>
             </div>
+            <div class="mobile-table-cards" id="productMobileCards"></div>
+            <p class="mobile-hint">表格可左右滑動查看完整欄位。</p>
             <div class="table-scroll">
               <table>
                 <thead>
@@ -923,17 +1169,19 @@
                 <input id="calendarSkuInput" type="search" placeholder="或直接輸入產品貨號，可留空">
                 <input id="calendarNoteInput" type="text" placeholder="備註，例如先盤奶水區、口罩倉庫、低庫存品">
               </div>
-              <div class="formula">
+              <div class="formula blue-box">
                 <strong>批量加入</strong><br>
                 選好日期與類別後，可用貨號區間一次加入多個商品，或直接把整個類別的所有商品排入該日。
               </div>
               <div style="height:12px"></div>
-              <div class="toolbar compact">
+              <div class="toolbar compact blue-actions">
                 <input id="rangeStartSkuInput" type="search" placeholder="起始貨號">
                 <input id="rangeEndSkuInput" type="search" placeholder="結束貨號">
                 <button class="btn" id="calendarRangeAddBtn" type="button">加入貨號區間</button>
                 <button class="btn" id="calendarCategoryAddBtn" type="button">加入整個類別</button>
               </div>
+              <div class="mobile-table-cards" id="calendarMobileCards"></div>
+              <p class="mobile-hint">表格可左右滑動查看完整欄位。</p>
               <div class="table-scroll">
                 <table>
                   <thead>
@@ -953,18 +1201,6 @@
                   </tbody>
                 </table>
               </div>
-            </div>
-          </div>
-
-          <div class="panel">
-            <div class="panel-head">
-              <div>
-                <h2 class="panel-title">分類規則</h2>
-                <div class="panel-subtitle">依產品貨號第一碼分類。</div>
-              </div>
-            </div>
-            <div class="panel-body">
-              <div class="formula">A系列 保健食品<br>B系列 口罩<br>C系列 醫療器材<br>D系列 營養奶水、粉<br>E系列 母嬰/玩具<br>F系列 生活用品<br>G系列 3C用品<br>H系列 醫美藥妝<br>I系列 美食/伴手禮<br>J系列 兩性用品</div>
             </div>
           </div>
         </div>
@@ -1055,7 +1291,7 @@
   </div>
 
   <script>
-    const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyEd6omJ-zKD_qwqh9b3T7QFqPbnnQ4TWhwkSLKp6cE_fPR8r22TQOHhD8bqzHk-cmw/exec";
+    const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbywRfdNSWKpqgDk1CSo4w0fvDGT1if2pPZimpuE2yO1S6kNZb4ETMNNad9UeEBlMlqq/exec";
     const SERIES_OPTIONS = [
       "A系列 保健食品",
       "B系列 口罩",
@@ -1075,6 +1311,20 @@
     let dashboardCache = null;
     let homeMode = "assigned";
     let expiryFilter = "expired";
+
+    function weekdayLabel(date = new Date()) {
+      return date.toLocaleDateString("zh-TW", {
+        month: "numeric",
+        day: "numeric",
+        weekday: "long",
+      });
+    }
+
+    function renderTodayLabel() {
+      const label = weekdayLabel();
+      document.getElementById("todayLabel").textContent = label;
+      document.getElementById("topTodayLabel").textContent = label;
+    }
 
     tabButtons.forEach((button) => {
       button.addEventListener("click", () => {
@@ -1106,7 +1356,9 @@
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("API 寫入失敗");
-      return res.json();
+      const data = await res.json();
+      if (data.status === "error") throw new Error(data.message || "API 寫入失敗");
+      return data;
     }
 
     async function loadDashboardFromApi() {
@@ -1116,13 +1368,7 @@
         dashboardCache = data;
         const values = document.querySelectorAll(".metric-value");
         if (values[0]) values[0].textContent = `${data.metrics.todayTasks - data.metrics.pendingTasks} / ${data.metrics.todayTasks}`;
-        if (values[1]) {
-          const done = data.metrics.expiryFilledRows || 0;
-          const total = data.metrics.stockPositiveRows || 0;
-          values[1].textContent = total ? `${Math.round(done / total * 100)}%` : "0%";
-        }
-        if (values[2]) values[2].textContent = data.metrics.expiryBlankRows;
-        if (values[3]) values[3].textContent = data.metrics.lowStockRows;
+        if (values[2]) values[2].textContent = data.metrics.lowStockRows;
         renderExpiryAlerts();
         renderHomeTasks();
       } catch (err) {
@@ -1208,6 +1454,18 @@
 
     function expiryOf(item) {
       return item.expiry || item["效期"] || "";
+    }
+
+    function assigneeName() {
+      const saved = localStorage.getItem("xinnanInventoryAssignee") || "";
+      const name = prompt("請輸入盤點人姓名，填寫後才會儲存盤點紀錄。", saved);
+      const cleaned = String(name || "").trim();
+      if (!cleaned) {
+        alert("請填寫盤點人姓名後再儲存。");
+        return "";
+      }
+      localStorage.setItem("xinnanInventoryAssignee", cleaned);
+      return cleaned;
     }
 
     function dateInputValue(value) {
@@ -1369,6 +1627,8 @@
           const sku = row.dataset.sku;
           const expiry = row.querySelector(".expiry-input").value;
           const actualQty = row.querySelector(".actual-input").value;
+          const assignee = assigneeName();
+          if (!assignee) return;
           if (!confirm(`確認儲存 ${sku} 的實際庫存與效期？`)) return;
           try {
             await postApi({
@@ -1378,6 +1638,8 @@
               actual_qty: actualQty,
               expiry,
               status: expiry ? "效期已補" : "已盤點正常",
+              assignee,
+              "填寫人": assignee,
             });
             button.textContent = "已儲存";
             button.disabled = true;
@@ -1388,13 +1650,36 @@
       });
     }
 
+    function renderMobileCards(containerId, rows, renderCard, emptyText) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      if (!rows.length) {
+        container.innerHTML = `<article class="mobile-table-card"><h3>${emptyText}</h3></article>`;
+        return;
+      }
+      container.innerHTML = rows.slice(0, 12).map(renderCard).join("");
+    }
+
     function renderProductRows(rows) {
       const tbody = document.getElementById("productTableBody");
       if (!tbody) return;
       if (!rows.length) {
         tbody.innerHTML = `<tr><td colspan="10">沒有符合條件的商品</td></tr>`;
+        renderMobileCards("productMobileCards", [], () => "", "沒有符合條件的商品");
         return;
       }
+      renderMobileCards("productMobileCards", rows, (item) => {
+        const category = categoryOfProduct(item);
+        return `
+          <article class="mobile-table-card">
+            <h3>${nameOf(item) || "未命名商品"}</h3>
+            <div class="mobile-card-line"><span>貨號</span><span>${skuOf(item)}</span></div>
+            <div class="mobile-card-line"><span>大類</span><span>${category}</span></div>
+            <div class="mobile-card-line"><span>庫存</span><span>${item.stock_total ?? ""}</span></div>
+            <div class="mobile-card-line"><span>最近效期</span><span>${item.expiry || "待補效期"}</span></div>
+          </article>
+        `;
+      }, "沒有符合條件的商品");
       tbody.innerHTML = rows.map((item) => {
         const category = categoryOfProduct(item);
         return `
@@ -1438,8 +1723,8 @@
       today.setHours(0, 0, 0, 0);
       const days = Math.ceil((date - today) / 86400000);
       if (days < 0) return { key: "expired", label: "已過期", cls: "red", suggestion: "不可銷售，需立即下架或處理" };
-      if (days <= 90) return { key: "3m", label: "3 個月內", cls: "red", suggestion: "優先確認批次，安排前排銷售" };
-      if (days <= 180) return { key: "6m", label: "6 個月內", cls: "orange", suggestion: "列入每週追蹤" };
+      if (days <= 90) return { key: "3m", label: "90 天內", cls: "red", suggestion: "優先確認批次，安排前排銷售" };
+      if (days <= 180) return { key: "6m", label: "180 天內", cls: "orange", suggestion: "列入每週追蹤" };
       if (days <= 365) return { key: "1y", label: "1 年內", cls: "amber", suggestion: "提早規劃銷售節奏" };
       return { key: "ok", label: "一年以上", cls: "green", suggestion: "暫無急迫處理" };
     }
@@ -1455,15 +1740,39 @@
         stock_total: item["批次庫存"],
         expiry: item["效期"],
       }));
-      const source = [...productRows, ...blankRows];
-      const filtered = source
-        .map((item) => ({ item, status: expiryStatus(item) }))
+      const source = productRows.length ? productRows : blankRows;
+      const rowsWithStatus = source.map((item) => ({ item, status: expiryStatus(item) }));
+      const counts = rowsWithStatus.reduce((acc, { status }) => {
+        acc[status.key] = (acc[status.key] || 0) + 1;
+        if (status.key !== "ok") acc.all += 1;
+        return acc;
+      }, { expired: 0, "3m": 0, "6m": 0, "1y": 0, blank: 0, all: 0 });
+      document.querySelectorAll(".warning strong").forEach((node, index) => {
+        const keys = ["expired", "3m", "6m", "1y", "blank"];
+        node.textContent = counts[keys[index]] || 0;
+      });
+      const metricValues = document.querySelectorAll(".metric-value");
+      if (metricValues[1]) metricValues[1].textContent = (counts.expired || 0) + (counts["3m"] || 0) + (counts["6m"] || 0) + (counts["1y"] || 0);
+      const filtered = rowsWithStatus
         .filter(({ status }) => expiryFilter === "all" ? status.key !== "ok" : status.key === expiryFilter)
         .slice(0, 120);
       if (!filtered.length) {
         table.innerHTML = `<tr><td colspan="7">目前沒有符合這個效期狀態的商品</td></tr>`;
+        renderMobileCards("expiryMobileCards", [], () => "", "目前沒有符合這個效期狀態的商品");
         return;
       }
+      renderMobileCards("expiryMobileCards", filtered, ({ item, status }) => {
+        const category = categoryOfProduct(item);
+        return `
+          <article class="mobile-table-card">
+            <h3>${nameOf(item) || "未命名商品"}</h3>
+            <div class="mobile-card-line"><span>貨號</span><span>${skuOf(item)}</span></div>
+            <div class="mobile-card-line"><span>類別</span><span>${category}</span></div>
+            <div class="mobile-card-line"><span>效期</span><span>${expiryOf(item) || "待補效期"}</span></div>
+            <div class="mobile-card-line"><span>狀態</span><span>${status.label}</span></div>
+          </article>
+        `;
+      }, "目前沒有符合這個效期狀態的商品");
       table.innerHTML = filtered.map(({ item, status }) => {
         const category = categoryOfProduct(item);
         return `
@@ -1532,8 +1841,18 @@
       const filtered = rows.filter((row) => formatDateValue(row["日期"] || row.date) === date);
       if (!filtered.length) {
         tbody.innerHTML = `<tr><td colspan="8">${date} 尚未安排盤點行事曆</td></tr>`;
+        renderMobileCards("calendarMobileCards", [], () => "", `${date} 尚未安排盤點行事曆`);
         return;
       }
+      renderMobileCards("calendarMobileCards", filtered, (row) => `
+        <article class="mobile-table-card">
+          <h3>${row["商品名稱"] || row["產品貨號"] || row["盤點類別"] || "盤點安排"}</h3>
+          <div class="mobile-card-line"><span>日期</span><span>${String(row["日期"] || "").slice(0, 10)}</span></div>
+          <div class="mobile-card-line"><span>類別</span><span>${row["盤點類別"] || ""}</span></div>
+          <div class="mobile-card-line"><span>貨號</span><span>${row["產品貨號"] || "整個類別"}</span></div>
+          <div class="mobile-card-line"><span>狀態</span><span>${row["狀態"] || "待盤點"}</span></div>
+        </article>
+      `, `${date} 尚未安排盤點行事曆`);
       tbody.innerHTML = filtered.map((row, index) => `
         <tr>
           <td>${String(row["日期"] || "").slice(0, 10)}</td>
@@ -1758,6 +2077,7 @@
     document.getElementById("calendarDateInput").value = todayValue();
     document.getElementById("dashboardDateInput").value = todayValue();
 
+    renderTodayLabel();
     loadDashboardFromApi();
     loadProductsFromApi();
     loadCalendarProductOptions();
