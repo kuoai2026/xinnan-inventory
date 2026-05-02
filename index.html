@@ -50,6 +50,7 @@
       width: 100%;
       display: grid;
       grid-template-columns: 248px minmax(0, 1fr);
+      background: linear-gradient(to right, #111827 0 248px, var(--bg) 248px 100%);
     }
 
     .sidebar {
@@ -58,7 +59,8 @@
       padding: 22px 18px;
       position: sticky;
       top: 0;
-      height: 100vh;
+      min-height: 100vh;
+      height: max-content;
     }
 
     .mobile-tab-label {
@@ -421,6 +423,40 @@
       overflow-wrap: anywhere;
     }
 
+
+    .product-highlight {
+      display: grid;
+      gap: 3px;
+      color: var(--blue);
+      line-height: 1.35;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      border-radius: 12px;
+      background: transparent;
+    }
+
+    .product-highlight .product-sku {
+      display: block;
+      font-size: 18px;
+      font-weight: 950;
+      letter-spacing: .01em;
+    }
+
+    .product-highlight .product-name {
+      display: block;
+      font-size: 17px;
+      font-weight: 900;
+    }
+
+    .actual-input {
+      font-weight: 850;
+      color: var(--blue);
+      background: #eff6ff;
+    }
+
     .check-field {
       display: grid;
       gap: 5px;
@@ -518,7 +554,7 @@
 
     .warning-grid {
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(6, minmax(0, 1fr));
       gap: 10px;
     }
 
@@ -692,6 +728,36 @@
       }
     }
 
+    @media (max-width: 960px) {
+      .check-row {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+        overflow: hidden;
+      }
+      .check-product,
+      .check-field,
+      .batch-list,
+      .save-check-row {
+        width: 100%;
+        min-width: 0;
+      }
+      .batch-row {
+        grid-template-columns: minmax(0, 1fr);
+        overflow: hidden;
+      }
+      .inline-check {
+        white-space: normal;
+        overflow-wrap: anywhere;
+      }
+      .actual-input,
+      .batch-row input {
+        width: 100%;
+      }
+      .product-highlight {
+        padding: 0;
+      }
+    }
+
     @media (max-width: 680px) {
       body {
         font-size: 14px;
@@ -700,6 +766,7 @@
         display: block;
         width: 100%;
         max-width: 100vw;
+        background: var(--bg);
       }
       .sidebar {
         padding: max(14px, env(safe-area-inset-top)) 12px 12px;
@@ -937,10 +1004,374 @@
       .check-sku {
         overflow-wrap: anywhere;
       }
+      .check-product {
+        width: 100%;
+        min-width: 0;
+      }
+      .product-highlight {
+        gap: 2px;
+        line-height: 1.32;
+        width: 100%;
+        min-width: 0;
+        overflow: visible;
+      }
+      .product-highlight .product-sku {
+        font-size: clamp(15px, 4.1vw, 17px);
+        font-weight: 950;
+      }
+      .product-highlight .product-name {
+        font-size: clamp(15px, 3.9vw, 16px);
+        font-weight: 900;
+      }
+      .check-row .pill,
+      .meta .pill {
+        font-size: 12px;
+        line-height: 1.25;
+        max-width: 100%;
+        white-space: normal;
+      }
+      .check-field span {
+        font-size: 12px;
+      }
+      .check-field input,
+      .batch-row input {
+        width: 100%;
+      }
       .blue-actions .btn {
         min-height: 44px;
       }
     }
+
+    @media (max-width: 430px) {
+      main {
+        padding-left: 10px;
+        padding-right: 10px;
+      }
+      .check-row {
+        padding: 10px;
+        gap: 8px;
+      }
+      .product-highlight .product-sku {
+        font-size: 16px;
+      }
+      .product-highlight .product-name {
+        font-size: 15.5px;
+      }
+      .check-items {
+        gap: 9px;
+      }
+      .task h3 {
+        font-size: 15px;
+      }
+      .pill {
+        font-size: 12px;
+        padding: 3px 8px;
+      }
+    }
+
+
+    /* 2026-05 手機版修正：避免左側深藍底變成過長模板，並防止盤點商品卡片被右側切掉 */
+    @media (max-width: 1080px) {
+      .app {
+        display: block;
+        min-height: auto;
+        background: var(--bg) !important;
+      }
+      .sidebar {
+        position: static;
+        min-height: auto !important;
+        height: auto !important;
+      }
+      main {
+        width: 100%;
+        max-width: 100vw;
+      }
+      .panel,
+      .task,
+      .check-items,
+      .check-row,
+      .batch-list,
+      .batch-row {
+        max-width: 100%;
+        min-width: 0;
+      }
+      .check-row {
+        grid-template-columns: 1fr !important;
+        align-items: stretch;
+        overflow: hidden;
+      }
+      .check-product,
+      .check-field,
+      .batch-list,
+      .save-check-row,
+      .actual-input {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+      }
+      .batch-row {
+        grid-template-columns: 1fr !important;
+        width: 100%;
+        overflow: hidden;
+      }
+      .batch-row label,
+      .batch-row input,
+      .batch-row .inline-check {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+      }
+      .inline-check {
+        display: flex;
+        align-items: center;
+        white-space: normal !important;
+        overflow-wrap: anywhere;
+        line-height: 1.45;
+      }
+      .inline-check input {
+        width: 18px;
+        min-width: 18px;
+        flex: 0 0 18px;
+      }
+      .product-highlight {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+    }
+
+    @media (max-width: 430px) {
+      .sidebar {
+        padding-bottom: 10px;
+      }
+      .brand {
+        margin-bottom: 10px;
+      }
+      .nav {
+        gap: 6px;
+      }
+      .nav button {
+        min-height: 52px;
+        padding: 7px 4px;
+      }
+      .task,
+      .check-row {
+        border-radius: 10px;
+      }
+      .check-row {
+        padding: 10px;
+      }
+      .batch-row {
+        padding: 10px;
+        border-radius: 10px;
+      }
+      .product-highlight .product-sku {
+        font-size: 16px;
+      }
+      .product-highlight .product-name {
+        font-size: 15.5px;
+        line-height: 1.38;
+      }
+      .check-field span,
+      .inline-check {
+        font-size: 13px;
+      }
+    }
+
+  
+
+    /* 2026-05-02 桌機＋手機版盤點卡片最終修正：避免灰色區塊右側被裁切，並微調貨號品名字級 */
+    .check-row,
+    .check-row * {
+      box-sizing: border-box;
+    }
+
+    .check-row > * {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .check-items {
+      width: 100%;
+      max-width: 100%;
+      overflow: visible;
+    }
+
+    .check-row {
+      width: 100%;
+      max-width: 100%;
+      overflow: visible;
+    }
+
+    .check-product {
+      min-width: 0;
+      max-width: 100%;
+      overflow: visible;
+    }
+
+    .product-highlight {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      line-height: 1.32;
+    }
+
+    .batch-list {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      grid-column: 1 / -1;
+      overflow: visible;
+    }
+
+    .batch-row {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      overflow: visible;
+    }
+
+    .batch-row > * {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .batch-row input,
+    .actual-input {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+    }
+
+    .inline-check {
+      min-width: 0;
+      max-width: 100%;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      line-height: 1.45;
+    }
+
+    @media (min-width: 1081px) {
+      .check-row {
+        grid-template-columns: minmax(0, 1.05fr) 86px 118px;
+        gap: 10px 14px;
+        align-items: end;
+        padding: 12px;
+      }
+
+      .product-highlight .product-sku {
+        font-size: 16px;
+        font-weight: 950;
+      }
+
+      .product-highlight .product-name {
+        font-size: 15.5px;
+        font-weight: 900;
+        line-height: 1.36;
+      }
+
+      .check-field span {
+        font-size: 13px;
+      }
+
+      .batch-row {
+        grid-template-columns: minmax(96px, 120px) minmax(120px, 150px) minmax(160px, 1fr);
+        align-items: end;
+      }
+
+      .save-check-row {
+        grid-column: 1 / -1;
+        width: min(360px, 100%);
+        justify-self: start;
+      }
+    }
+
+    @media (max-width: 1080px) {
+      .check-row {
+        grid-template-columns: 1fr !important;
+        overflow: visible !important;
+      }
+
+      .batch-row {
+        grid-template-columns: 1fr !important;
+        overflow: visible !important;
+      }
+
+      .save-check-row,
+      .add-batch-btn {
+        width: 100%;
+      }
+    }
+
+    @media (max-width: 430px) {
+      .product-highlight .product-sku {
+        font-size: 15.5px !important;
+      }
+
+      .product-highlight .product-name {
+        font-size: 15px !important;
+        line-height: 1.36;
+      }
+    }
+
+
+    /* 修正：此商品無效期 checkbox 文字不換行、不被裁切，並讓文字靠近勾選框 */
+    .batch-row {
+      grid-template-columns: minmax(120px, 1fr) minmax(150px, 1fr) max-content !important;
+      align-items: end !important;
+      column-gap: 10px !important;
+      row-gap: 10px !important;
+    }
+
+    .inline-check {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: flex-start !important;
+      gap: 6px !important;
+      width: max-content !important;
+      max-width: none !important;
+      min-width: max-content !important;
+      white-space: nowrap !important;
+      word-break: keep-all !important;
+      overflow-wrap: normal !important;
+      line-height: 1.2 !important;
+      justify-self: start !important;
+      align-self: center !important;
+    }
+
+    .inline-check input {
+      width: 18px !important;
+      height: 18px !important;
+      min-width: 18px !important;
+      flex: 0 0 18px !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    @media (max-width: 1080px) {
+      .batch-row {
+        grid-template-columns: 1fr !important;
+      }
+
+      .inline-check {
+        width: max-content !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        white-space: nowrap !important;
+        justify-self: start !important;
+      }
+    }
+
+    @media (max-width: 430px) {
+      .inline-check {
+        font-size: 14px !important;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -1070,6 +1501,7 @@
               <div class="warning"><strong style="color:var(--orange)">18</strong><span>180 天內到期<br>列入每週追蹤</span></div>
               <div class="warning"><strong style="color:var(--amber)">42</strong><span>一年內到期<br>提早規劃銷售節奏</span></div>
               <div class="warning"><strong style="color:var(--violet)">11</strong><span>效期空白<br>需補登效期資料</span></div>
+              <div class="warning"><strong id="countedWarningCount" style="color:var(--blue)">0</strong><span>已盤點<br>已有批次效期資料</span></div>
             </div>
             <div style="height:16px"></div>
             <div class="filter-tabs" aria-label="效期狀態篩選">
@@ -1078,6 +1510,7 @@
               <button class="filter-tab" type="button" data-expiry-filter="6m">180 天內</button>
               <button class="filter-tab" type="button" data-expiry-filter="1y">1 年內</button>
               <button class="filter-tab" type="button" data-expiry-filter="blank">效期空白</button>
+              <button class="filter-tab" type="button" data-expiry-filter="counted">已盤點</button>
               <button class="filter-tab" type="button" data-expiry-filter="all">全部警示</button>
             </div>
             <div class="mobile-table-cards" id="expiryMobileCards"></div>
@@ -1485,6 +1918,43 @@
       return item.stock_total ?? item["批次庫存"] ?? item["總庫存"] ?? "";
     }
 
+    function batchQtyTotal(batches) {
+      if (!Array.isArray(batches)) return null;
+      const total = batches.reduce((sum, batch) => sum + Number(batch.qty ?? batch["批次庫存"] ?? 0), 0);
+      return Number.isFinite(total) ? total : null;
+    }
+
+    function actualStockOf(item) {
+      const total = batchQtyTotal(item?.batches);
+      if (total !== null) return total;
+      return stockOf(item);
+    }
+
+    function calculateActualFromBatches(row) {
+      let total = 0;
+      row.querySelectorAll(".batch-qty-input").forEach((input) => {
+        total += Number(input.value || 0);
+      });
+      return total;
+    }
+
+    function updateActualFromBatches(row) {
+      const actualInput = row.querySelector(".actual-input");
+      if (!actualInput) return;
+      actualInput.value = calculateActualFromBatches(row);
+    }
+
+    function bindBatchAutoSum(scope) {
+      scope.querySelectorAll(".check-row").forEach((row) => {
+        if (row.dataset.batchAutoSumBound === "1") return;
+        row.dataset.batchAutoSumBound = "1";
+        row.addEventListener("input", (event) => {
+          if (event.target.classList.contains("batch-qty-input")) updateActualFromBatches(row);
+        });
+        updateActualFromBatches(row);
+      });
+    }
+
     function expiryOf(item) {
       return item.expiry || item["效期"] || "";
     }
@@ -1496,6 +1966,13 @@
 
     function isNoExpiryItem(item) {
       return Boolean(item.no_expiry || item["無效期"] || isNoExpiryValue(expiryOf(item)) || String(item.expiry_status || item["效期狀態"] || "").includes("無效期"));
+    }
+
+    function isCountedItem(item) {
+      if (!item) return false;
+      if (Array.isArray(item.batches) && item.batches.length) return true;
+      const status = String(item.expiry_status || item["效期狀態"] || "");
+      return Boolean(expiryOf(item) || isNoExpiryItem(item) || status.includes("已補") || status.includes("已盤點"));
     }
 
     function escapeAttr(value) {
@@ -1722,8 +2199,10 @@
         const rows = items.length ? items.map((item) => `
           <div class="check-row" data-sku="${escapeAttr(skuOf(item))}" data-category="${escapeAttr(category)}" data-product-name="${escapeAttr(nameOf(item))}">
             <div class="check-product">
-              <div class="check-sku">${skuOf(item)}</div>
-              <div class="check-name">${nameOf(item)}</div>
+              <div class="product-highlight">
+                <span class="product-sku">${skuOf(item)}</span>
+                <span class="product-name">${nameOf(item)}</span>
+              </div>
             </div>
             <div class="check-field">
               <span>系統庫存</span>
@@ -1731,10 +2210,10 @@
             </div>
             <label class="check-field">
               <span>實際庫存</span>
-              <input class="actual-input" type="number" min="0" value="${stockOf(item)}">
+              <input class="actual-input" type="number" min="0" value="${actualStockOf(item)}" readonly>
             </label>
             <div class="batch-list">
-              ${batchRowHtml({ qty: stockOf(item), expiry: expiryOf(item), noExpiry: isNoExpiryItem(item) })}
+              ${batchRowHtml({ qty: actualStockOf(item), expiry: expiryOf(item), noExpiry: isNoExpiryItem(item) })}
               <button class="btn add-batch-btn" type="button">+ 新增另一批庫存及效期</button>
             </div>
             <button class="btn primary save-check-row" type="button">確認儲存</button>
@@ -1757,16 +2236,19 @@
       }));
       list.innerHTML = cards.join("");
       bindNoExpiryToggle(list);
+      bindBatchAutoSum(list);
       list.querySelectorAll(".add-batch-btn").forEach((button) => {
         button.addEventListener("click", () => {
           button.insertAdjacentHTML("beforebegin", batchRowHtml({ extra: true }));
           bindNoExpiryToggle(button.closest(".batch-list"));
+          updateActualFromBatches(button.closest(".check-row"));
         });
       });
       list.querySelectorAll(".save-check-row").forEach((button) => {
         button.addEventListener("click", async () => {
           const row = button.closest(".check-row");
           const sku = row.dataset.sku;
+          updateActualFromBatches(row);
           const actualQty = row.querySelector(".actual-input").value;
           const batches = collectBatchRows(row);
           if (!batches.length) {
@@ -1895,20 +2377,26 @@
         expiry: item["效期"],
       }));
       const source = productRows.length ? productRows : blankRows;
-      const rowsWithStatus = source.map((item) => ({ item, status: expiryStatus(item) }));
-      const counts = rowsWithStatus.reduce((acc, { status }) => {
+      const rowsWithStatus = source.map((item) => ({ item, status: expiryStatus(item), counted: isCountedItem(item) }));
+      const counts = rowsWithStatus.reduce((acc, { status, counted }) => {
         acc[status.key] = (acc[status.key] || 0) + 1;
         if (status.key !== "ok") acc.all += 1;
+        if (counted) acc.counted += 1;
         return acc;
-      }, { expired: 0, "3m": 0, "6m": 0, "1y": 0, blank: 0, all: 0 });
+      }, { expired: 0, "3m": 0, "6m": 0, "1y": 0, blank: 0, all: 0, counted: 0 });
       document.querySelectorAll(".warning strong").forEach((node, index) => {
-        const keys = ["expired", "3m", "6m", "1y", "blank"];
+        const keys = ["expired", "3m", "6m", "1y", "blank", "counted"];
         node.textContent = counts[keys[index]] || 0;
       });
+      const countedNode = document.getElementById("countedWarningCount");
+      if (countedNode) countedNode.textContent = counts.counted || 0;
       const metricValues = document.querySelectorAll(".metric-value");
       if (metricValues[1]) metricValues[1].textContent = (counts.expired || 0) + (counts["3m"] || 0) + (counts["6m"] || 0) + (counts["1y"] || 0);
       const filtered = rowsWithStatus
-        .filter(({ status }) => expiryFilter === "all" ? status.key !== "ok" : status.key === expiryFilter)
+        .filter(({ status, counted }) => {
+          if (expiryFilter === "counted") return counted;
+          return expiryFilter === "all" ? status.key !== "ok" : status.key === expiryFilter;
+        })
         .slice(0, 120);
       if (!filtered.length) {
         table.innerHTML = `<tr><td colspan="7">目前沒有符合這個效期狀態的商品</td></tr>`;
@@ -2171,18 +2659,78 @@
     }
 
     document.getElementById("syncBtn").addEventListener("click", async () => {
+      const button = document.getElementById("syncBtn");
+      const originalText = button.textContent;
+      button.disabled = true;
+      button.textContent = "同步中...";
       try {
-        await callApi("sync");
+        try {
+          await callApi("sync");
+        } catch (syncErr) {
+          console.warn("sync action failed, fallback to reload", syncErr);
+        }
+        await loadProductsFromApi(productSearchInput?.value.trim() || "");
         await loadDashboardFromApi();
+        await loadCalendar();
+        alert("同步完成，商品、首頁與行事曆資料已重新載入。");
       } catch (err) {
-        alert(err.message);
+        alert("同步失敗：" + err.message);
+      } finally {
+        button.disabled = false;
+        button.textContent = originalText.trim() || "同步商品";
       }
     });
 
-    document.getElementById("saveBtn").addEventListener("click", () => {
-      alert(APPS_SCRIPT_WEB_APP_URL
-        ? "盤點回寫 API 已就緒，正式版會逐列送出今日盤點結果。"
-        : "尚未設定 Apps Script Web App URL，目前保留示範資料。");
+    document.getElementById("saveBtn").addEventListener("click", async () => {
+      const rows = [...document.querySelectorAll("#todayTaskList .check-row[data-sku]")];
+      if (!rows.length) {
+        alert("目前沒有可儲存的盤點資料。");
+        return;
+      }
+      const assignee = assigneeName();
+      if (!assignee) return;
+      if (!confirm(`確認儲存目前首頁 ${rows.length} 筆盤點資料？`)) return;
+
+      const button = document.getElementById("saveBtn");
+      const originalText = button.textContent;
+      let saved = 0;
+      button.disabled = true;
+      button.textContent = "儲存中...";
+
+      try {
+        for (const row of rows) {
+          updateActualFromBatches(row);
+          const batches = collectBatchRows(row);
+          if (!batches.length) continue;
+          const missingExpiry = batches.some((batch) => !batch.no_expiry && !batch.expiry);
+          if (missingExpiry) {
+            throw new Error(`${row.dataset.sku} 尚有批次未填效期，請補齊或勾選此商品無效期。`);
+          }
+          const actualQty = row.querySelector(".actual-input")?.value || calculateActualFromBatches(row);
+          await postApi({
+            action: "saveCheck",
+            sku: row.dataset.sku,
+            category: row.dataset.category,
+            product_name: row.dataset.productName,
+            actual_qty: actualQty,
+            expiry: batches[0]?.expiry || "",
+            no_expiry: batches[0]?.no_expiry || false,
+            batches,
+            status: batches.some((batch) => batch.no_expiry) ? "無效期" : "效期已補",
+            assignee,
+            "填寫人": assignee,
+          });
+          saved++;
+        }
+        alert(`全部盤點已儲存完成，共儲存 ${saved} 筆。`);
+        await loadProductsFromApi(productSearchInput?.value.trim() || "");
+        await loadDashboardFromApi();
+      } catch (err) {
+        alert("儲存失敗：" + err.message);
+      } finally {
+        button.disabled = false;
+        button.textContent = originalText.trim() || "儲存盤點";
+      }
     });
 
     const productSearchInput = document.getElementById("productSearchInput");
