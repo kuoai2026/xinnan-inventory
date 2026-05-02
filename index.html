@@ -1757,7 +1757,7 @@
   </div>
 
   <script>
-    const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwmWFkOj-2tllWyYkmMEOjlCB2oOEVN4Su3JZKK7yY0nZW3mfa9mtEFvmJaXbRCEZhu/exec";
+    const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwH3bfQflt64qExA5ZJZFbA4C9egcwPsjfTSS_d0eEcK2s5i7zv3K9V-PBXzmCMpFI/exec";
     const SERIES_OPTIONS = [
       "A系列 保健食品",
       "B系列 口罩",
@@ -1821,8 +1821,14 @@
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error("API 寫入失敗");
-      const data = await res.json();
+      const rawText = await res.text();
+      if (!res.ok) throw new Error(`API 寫入失敗（HTTP ${res.status}）：${rawText || res.statusText}`);
+      let data;
+      try {
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch (err) {
+        throw new Error(`API 回傳格式不是 JSON：${rawText.slice(0, 200)}`);
+      }
       if (data.status === "error") throw new Error(data.message || "API 寫入失敗");
       return data;
     }
@@ -2283,6 +2289,9 @@
             });
             button.textContent = "已儲存";
             button.disabled = true;
+            await loadProductsFromApi(productSearchInput?.value.trim() || "");
+            await loadDashboardFromApi();
+            await loadCalendar();
           } catch (err) {
             alert(err.message);
           }
@@ -2729,6 +2738,7 @@
         alert(`全部盤點已儲存完成，共儲存 ${saved} 筆。`);
         await loadProductsFromApi(productSearchInput?.value.trim() || "");
         await loadDashboardFromApi();
+        await loadCalendar();
       } catch (err) {
         alert("儲存失敗：" + err.message);
       } finally {
