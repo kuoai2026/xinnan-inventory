@@ -1757,7 +1757,7 @@
   </div>
 
   <script>
-    const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzTi9jjljm_dqcNKUqGUUpuGvLMjoC5KTt7ulXw1NWvREVUTbPQR6oYGSp1DavM_Qoz/exec";
+    const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycby31VMS691a0a4sjJH_xVXJwPDS0BOPuglM--44tOdSj-uJd1lfDersvK0h9FkBoZG1/exec";
     const SERIES_OPTIONS = [
       "A系列 保健食品",
       "B系列 口罩",
@@ -1836,6 +1836,10 @@
         if (values[0]) values[0].textContent = `${data.metrics.todayTasks - data.metrics.pendingTasks} / ${data.metrics.todayTasks}`;
         if (values[2]) values[2].textContent = data.metrics.lowStockRows;
         renderExpiryAlerts();
+        // 若 productCache 尚未載入，先等待商品資料，確保商品名稱能正確顯示
+        if (!productCache.length) {
+          await loadProductsFromApi();
+        }
         renderHomeTasks();
       } catch (err) {
         console.warn(err);
@@ -2787,8 +2791,12 @@
     document.getElementById("dashboardDateInput").value = todayValue();
 
     renderTodayLabel();
-    loadDashboardFromApi();
-    loadProductsFromApi();
+    // 先載入商品快取，再載入 Dashboard（Dashboard 內含 renderHomeTasks，需要 productCache 才能正確顯示商品名稱）
+    loadProductsFromApi().then(() => {
+      loadDashboardFromApi();
+    }).catch(() => {
+      loadDashboardFromApi();
+    });
     loadCalendarProductOptions();
     loadCalendar();
   </script>
