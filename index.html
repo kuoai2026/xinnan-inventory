@@ -1795,7 +1795,7 @@
   </div>
 
   <script>
-    const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyu5_puR99h_Cfb4SLzdeetIm6z2jay3XhE0JaaQmP8mjAZGN5bdePWsnBK_HuKICtO/exec";
+    const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw0ayAY50kIGxPvxCPwmdJ9bvD25ZpVfbkJifUvi704oklvAxh8SUg1EPTDCFROu-dd/exec";
     const EXPIRY_BATCH_GVIZ_URL = "https://docs.google.com/spreadsheets/d/1qd8U4C5Hxnuq23oQsUht_7hpGE85lpz2D-nyc8v-_5g/gviz/tq?gid=1026804799";
     const SERIES_OPTIONS = [
       "A系列 保健食品",
@@ -2055,8 +2055,23 @@
       return item.product_name || item["商品名稱"] || "";
     }
 
+    function normalizeStockValue(value) {
+      if (value === "" || value == null) return "";
+      if (typeof value === "number") return value;
+      const text = String(value).trim();
+      const direct = Number(text.replace(/,/g, ""));
+      if (Number.isFinite(direct)) return direct;
+      const date = new Date(text);
+      if (!Number.isNaN(date.getTime()) && date.getUTCFullYear() <= 1901) {
+        const base = new Date("1899-12-30T08:00:00.000Z");
+        const serial = Math.round((date - base) / 86400000);
+        if (serial >= 0 && serial < 100000) return serial;
+      }
+      return value;
+    }
+
     function stockOf(item) {
-      return item.stock_total ?? item["批次庫存"] ?? item["總庫存"] ?? "";
+      return normalizeStockValue(item.stock_total ?? item["批次庫存"] ?? item["總庫存"] ?? "");
     }
 
     function batchQtyTotal(batches) {
@@ -2379,7 +2394,7 @@
               <input class="actual-input" type="number" min="0" value="${actualStockOf(item)}" readonly>
             </label>
             <div class="batch-list">
-              ${batchRowHtml({ qty: actualStockOf(item), expiry: expiryOf(item), noExpiry: isNoExpiryItem(item) })}
+              ${productEditorBatchRows(item)}
               <button class="btn add-batch-btn" type="button">+ 新增另一批庫存及效期</button>
             </div>
             <button class="btn primary save-check-row" type="button">確認儲存</button>
@@ -2554,7 +2569,7 @@
             <h3>${nameOf(item) || "未命名商品"}</h3>
             <div class="mobile-card-line"><span>貨號</span><span>${skuOf(item)}</span></div>
             <div class="mobile-card-line"><span>大類</span><span>${category}</span></div>
-            <div class="mobile-card-line"><span>庫存</span><span>${item.stock_total ?? ""}</span></div>
+            <div class="mobile-card-line"><span>庫存</span><span>${stockOf(item)}</span></div>
             <div class="mobile-card-line"><span>最近效期</span><span>${isNoExpiryItem(item) ? "無效期" : (item.expiry || "待補效期")}</span></div>
           </article>
         `;
@@ -2568,7 +2583,7 @@
             <td><span class="pill ${pillClass(category)}">${category}</span></td>
             <td>${money(item.cost)}</td>
             <td>${money(item.price)}</td>
-            <td>${item.stock_total ?? ""}</td>
+            <td>${stockOf(item)}</td>
             <td>-</td>
             <td>${isNoExpiryItem(item) ? "無效期" : (item.expiry || "待補效期")}</td>
             <td>${isNoExpiryItem(item) ? "無效期" : (item.expiry_status || "待補效期")}</td>
