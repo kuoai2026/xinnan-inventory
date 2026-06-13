@@ -1795,7 +1795,7 @@
   </div>
 
   <script>
-    const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzz2o5p7CGG4t6CdQBasTbW8LvEldqulkOY2YBoRmLaqo0KV9wUMIasemzEDr8b1tCf/exec";
+    const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycby9rIQ7PNQL-irSY0RMa0mbl4M0NiiTTYQkFub-bUn1Paxd771QihySwpgmm9rYUFoD/exec";
     const EXPIRY_BATCH_GVIZ_URL = "https://docs.google.com/spreadsheets/d/1qd8U4C5Hxnuq23oQsUht_7hpGE85lpz2D-nyc8v-_5g/gviz/tq?gid=1026804799";
     const SERIES_OPTIONS = [
       "A系列 保健食品",
@@ -1870,6 +1870,39 @@
       const data = await res.json();
       if (data.status === "error") throw new Error(data.message || "API 寫入失敗");
       return data;
+    }
+
+    async function saveInventoryRecordOnly({ sku, productName, category, totalStock }) {
+      const payload = {
+        action: "saveInventoryRecord",
+        sku,
+        product_name: productName,
+        category,
+        total_stock: totalStock,
+        actual_qty: totalStock,
+        source: "庫存總覽效期批次儲存",
+      };
+      try {
+        return await postApi(payload);
+      } catch (err) {
+        if (!String(err.message || "").includes("Unknown action")) throw err;
+        const assignee = localStorage.getItem("xinnanInventoryAssignee") || "庫存總覽";
+        return postApi({
+          action: "saveCheck",
+          sku,
+          product_name: productName,
+          category,
+          actual_qty: totalStock,
+          total_stock: totalStock,
+          status: "庫存總覽同步",
+          notes: "庫存總覽效期批次儲存：同步總庫存至盤點紀錄",
+          source: "庫存總覽效期批次儲存",
+          record_only: true,
+          skip_expiry_update: true,
+          assignee,
+          "填寫人": assignee,
+        });
+      }
     }
 
     function loadGvizJsonp(url) {
@@ -3262,12 +3295,15 @@
           button.disabled = true;
           button.textContent = "儲存中...";
           if (statusText) statusText.textContent = "儲存中...";
+          const sku = button.dataset.sku;
+          const productName = editor.dataset.productName || "";
+          const category = editor.dataset.category || "";
           try {
             await postApi({
               action: "updateExpiry",
-              sku: button.dataset.sku,
-              product_name: editor.dataset.productName || "",
-              category: editor.dataset.category || "",
+              sku,
+              product_name: productName,
+              category,
               expiry: batches[0]?.expiry || "",
               no_expiry: batches[0]?.no_expiry || false,
               batches,
@@ -3276,9 +3312,15 @@
               write_inventory_record: true,
               inventory_record_source: "庫存總覽效期批次儲存",
             });
-            updateProductAfterExpirySave(button.dataset.sku, batches, totalStock, editor.dataset.productName || "", editor.dataset.category || "");
+            try {
+              await saveInventoryRecordOnly({ sku, productName, category, totalStock });
+            } catch (recordErr) {
+              alert(`效期批次已儲存，但盤點紀錄寫入失敗：${recordErr.message}`);
+              if (statusText) statusText.textContent = "效期已儲存；盤點紀錄寫入失敗";
+            }
+            updateProductAfterExpirySave(sku, batches, totalStock, productName, category);
             button.textContent = "已儲存";
-            if (statusText) statusText.textContent = `已更新總庫存 ${totalStock}，並同步新增盤點紀錄`;
+            if (statusText && !statusText.textContent.includes("失敗")) statusText.textContent = `已更新總庫存 ${totalStock}，並同步新增盤點紀錄`;
             setTimeout(() => {
               button.disabled = false;
               button.textContent = savedText;
