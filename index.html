@@ -624,6 +624,50 @@
       gap: 6px;
     }
 
+    .btn.danger {
+      background: var(--red);
+      border-color: var(--red);
+      color: #fff;
+    }
+
+    .btn[disabled] {
+      opacity: .62;
+      cursor: not-allowed;
+    }
+
+    .dialog-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      background: rgba(15, 23, 42, .48);
+      display: grid;
+      place-items: center;
+      padding: 18px;
+    }
+
+    .dialog {
+      width: min(520px, 100%);
+      background: #fff;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      box-shadow: 0 24px 70px rgba(15, 23, 42, .25);
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .dialog h3 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
     .expiry-edit-row {
       background: #f8fafc;
     }
@@ -1501,6 +1545,7 @@
               <button class="filter-tab" type="button" data-expiry-filter="1y">1 年內</button>
               <button class="filter-tab" type="button" data-expiry-filter="blank">效期空白</button>
               <button class="filter-tab" type="button" data-expiry-filter="counted">已盤點</button>
+              <button class="filter-tab" type="button" data-expiry-filter="resolved">已解決</button>
               <button class="filter-tab" type="button" data-expiry-filter="all">全部警示</button>
             </div>
             <div class="mobile-table-cards" id="expiryMobileCards"></div>
@@ -1512,15 +1557,18 @@
                     <th>產品貨號</th>
                     <th>商品名稱</th>
                     <th>類別</th>
-                    <th>庫存</th>
+                    <th>警示數量</th>
+                    <th>總庫存</th>
                     <th>最近效期</th>
                     <th>狀態</th>
                     <th>處理建議</th>
+                    <th>處理紀錄</th>
+                    <th>操作</th>
                   </tr>
                 </thead>
                 <tbody id="expiryTableBody">
                   <tr>
-                    <td colspan="7">正在載入效期警示...</td>
+                    <td colspan="10">正在載入效期警示...</td>
                   </tr>
                 </tbody>
               </table>
@@ -1748,6 +1796,7 @@
 
   <script>
     const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzz2o5p7CGG4t6CdQBasTbW8LvEldqulkOY2YBoRmLaqo0KV9wUMIasemzEDr8b1tCf/exec";
+    const EXPIRY_BATCH_GVIZ_URL = "https://docs.google.com/spreadsheets/d/1qd8U4C5Hxnuq23oQsUht_7hpGE85lpz2D-nyc8v-_5g/gviz/tq?gid=1026804799";
     const SERIES_OPTIONS = [
       "A系列 保健食品",
       "B系列 口罩",
@@ -1765,6 +1814,11 @@
     let productCache = [];
     let calendarCache = [];
     let dashboardCache = null;
+    let expiryAlertCache = [];
+    let expiryResolvedCache = [];
+    let expiryBatchCache = null;
+    let expiryApiLoaded = false;
+    let productLoadSeq = 0;
     let homeMode = "assigned";
     let expiryFilter = "expired";
 
@@ -1817,6 +1871,44 @@
       return data;
     }
 
+    function loadGvizJsonp(url) {
+      return new Promise((resolve, reject) => {
+        const callback = `__expiryGviz${Date.now()}${Math.floor(Math.random() * 10000)}`;
+        const script = document.createElement("script");
+        const cleanup = () => {
+          delete window[callback];
+          script.remove();
+        };
+        window[callback] = (data) => {
+          cleanup();
+          resolve(data);
+        };
+        script.onerror = () => {
+          cleanup();
+          reject(new Error("效期批次讀取失敗"));
+        };
+        script.src = `${url}&tqx=responseHandler:${callback}`;
+        document.head.appendChild(script);
+        setTimeout(() => {
+          if (!window[callback]) return;
+          cleanup();
+          reject(new Error("效期批次讀取逾時"));
+        }, 10000);
+      });
+    }
+
+    function gvizCell(row, index) {
+      const cell = row?.c?.[index];
+      if (!cell) return "";
+      if (cell.f != null) return cell.f;
+      if (cell.v == null) return "";
+      if (typeof cell.v === "string") {
+        const match = cell.v.match(/^Date\((\d+),(\d+),(\d+)\)$/);
+        if (match) return `${match[1]}-${String(Number(match[2]) + 1).padStart(2, "0")}-${String(match[3]).padStart(2, "0")}`;
+      }
+      return cell.v;
+    }
+
     async function loadDashboardFromApi() {
       if (!APPS_SCRIPT_WEB_APP_URL) return;
       try {
@@ -1825,6 +1917,7 @@
         const values = document.querySelectorAll(".metric-value");
         if (values[0]) values[0].textContent = `${data.metrics.todayTasks - data.metrics.pendingTasks} / ${data.metrics.todayTasks}`;
         if (values[2]) values[2].textContent = data.metrics.lowStockRows;
+        await loadExpiryAlertsFromApi();
         renderExpiryAlerts();
         renderHomeTasks();
       } catch (err) {
@@ -1971,6 +2064,15 @@
         .replaceAll('"', "&quot;")
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;");
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
     }
 
     function batchRowHtml({ qty = "", expiry = "", noExpiry = false, extra = false } = {}) {
@@ -2286,6 +2388,21 @@
       container.innerHTML = rows.slice(0, 12).map(renderCard).join("");
     }
 
+    function productEditorBatchRows(item) {
+      const batches = Array.isArray(item?.batches) && item.batches.length
+        ? item.batches
+        : [{ qty: stockOf(item), expiry: expiryOf(item), no_expiry: isNoExpiryItem(item) }];
+      return batches.map((batch) => batchRowHtml({
+        qty: batch.qty ?? batch["批次庫存"] ?? "",
+        expiry: batch.expiry || batch["效期"] || "",
+        noExpiry: Boolean(batch.no_expiry || isNoExpiryValue(batch.expiry || batch["效期"] || "")),
+      })).join("");
+    }
+
+    function totalQtyFromBatches(batches) {
+      return batches.reduce((sum, batch) => sum + parseQty(batch.qty ?? batch["批次庫存"]), 0);
+    }
+
     function renderProductRows(rows) {
       const tbody = document.getElementById("productTableBody");
       if (!tbody) return;
@@ -2326,7 +2443,7 @@
               <div class="expiry-editor" data-product-name="${escapeAttr(nameOf(item))}" data-category="${escapeAttr(category)}">
                 <strong>${skuOf(item)}</strong>
                 <div class="batch-list">
-                  ${batchRowHtml({ qty: stockOf(item), expiry: expiryOf(item), noExpiry: isNoExpiryItem(item) })}
+                  ${productEditorBatchRows(item)}
                   <button class="btn add-batch-btn" type="button">+ 新增另一批庫存及效期</button>
                 </div>
                 <button class="btn primary save-expiry-btn" type="button" data-sku="${skuOf(item)}">儲存</button>
@@ -2339,12 +2456,25 @@
       bindProductExpiryEditors();
     }
 
-    function expiryStatus(item) {
-      const value = expiryOf(item);
-      if (isNoExpiryItem(item)) return { key: "ok", label: "無效期", cls: "green", suggestion: "此商品不列入效期警示" };
-      if (!value) return { key: "blank", label: "效期空白", cls: "violet", suggestion: "重新盤點時補登效期" };
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) return { key: "blank", label: "效期格式待確認", cls: "violet", suggestion: "檢查效期格式" };
+    function parseQty(value) {
+      if (value === "" || value == null) return 0;
+      const num = Number(String(value).replace(/,/g, "").trim());
+      return Number.isFinite(num) ? num : 0;
+    }
+
+    function parseExpiryDate(value) {
+      const text = String(value || "").trim();
+      const match = text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+      if (!match) return null;
+      const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    function statusForExpiryValue(value, noExpiry = false) {
+      if (noExpiry || isNoExpiryValue(value)) return { key: "ok", label: "無效期", cls: "green", suggestion: "此商品不列入效期警示" };
+      if (!String(value || "").trim()) return { key: "blank", label: "效期空白", cls: "violet", suggestion: "重新盤點時補登效期" };
+      const date = parseExpiryDate(value);
+      if (!date) return { key: "blank", label: "效期格式待確認", cls: "violet", suggestion: "檢查效期格式" };
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const days = Math.ceil((date - today) / 86400000);
@@ -2355,25 +2485,256 @@
       return { key: "ok", label: "一年以上", cls: "green", suggestion: "暫無急迫處理" };
     }
 
-    function renderExpiryAlerts() {
-      const table = document.getElementById("expiryTableBody");
-      if (!table) return;
+    function expiryStatus(item) {
+      return statusForExpiryValue(expiryOf(item), isNoExpiryItem(item));
+    }
+
+    async function loadExpiryBatches() {
+      if (expiryBatchCache) return expiryBatchCache;
+      const data = await loadGvizJsonp(EXPIRY_BATCH_GVIZ_URL);
+      expiryBatchCache = (data?.table?.rows || []).map((row) => ({
+        sku: String(gvizCell(row, 0) || "").trim(),
+        product_name: gvizCell(row, 1) || "",
+        category: gvizCell(row, 2) || "",
+        expiry: String(gvizCell(row, 3) || "").trim(),
+        qty: gvizCell(row, 4),
+        source: gvizCell(row, 5) || "",
+        updated_at: gvizCell(row, 6) || "",
+      })).filter((row) => row.sku);
+      return expiryBatchCache;
+    }
+
+    function mergeExpiryBatches(products, batches) {
+      const bySku = new Map();
+      batches.forEach((batch) => {
+        if (!bySku.has(batch.sku)) bySku.set(batch.sku, []);
+        bySku.get(batch.sku).push(batch);
+      });
+      return products.map((item) => {
+        const itemBatches = bySku.get(skuOf(item)) || item.batches || [];
+        if (!itemBatches.length) return item;
+        const metrics = {
+          expired_qty: 0,
+          within_90_qty: 0,
+          within_180_qty: 0,
+          within_365_qty: 0,
+          blank_qty: 0,
+        };
+        let nearest = "";
+        itemBatches.forEach((batch) => {
+          const status = statusForExpiryValue(batch.expiry);
+          const qty = parseQty(batch.qty);
+          if (status.key === "expired") metrics.expired_qty += qty;
+          if (status.key === "3m") metrics.within_90_qty += qty;
+          if (status.key === "6m") metrics.within_180_qty += qty;
+          if (status.key === "1y") metrics.within_365_qty += qty;
+          if (status.key === "blank") metrics.blank_qty += qty;
+          const date = parseExpiryDate(batch.expiry);
+          if (date && (!nearest || date < parseExpiryDate(nearest))) nearest = batch.expiry;
+        });
+        return {
+          ...item,
+          ...metrics,
+          batches: itemBatches,
+          nearest_expiry: nearest || item.nearest_expiry || expiryOf(item),
+          expiry: nearest || expiryOf(item),
+        };
+      });
+    }
+
+    function alertKey(row) {
+      return [
+        row.batch_id || row["批次 ID"] || "",
+        row.sku || row["產品貨號"] || "",
+        row.expiry || row["效期"] || "",
+        row.alert_qty ?? row.qty ?? row["批次庫存"] ?? "",
+        row.status_key || row["警示狀態"] || row.status?.key || "",
+      ].join("|");
+    }
+
+    function normalizeResolvedRecord(row) {
+      const statusKey = row.status_key || row["警示狀態"] || row.status || "";
+      return {
+        key: row.key || alertKey({
+          batch_id: row.batch_id,
+          sku: row.sku || row["產品貨號"],
+          expiry: row.expiry || row["效期"],
+          alert_qty: row.alert_qty ?? row.qty ?? row["批次庫存"],
+          status_key: statusKey,
+        }),
+        sku: row.sku || row["產品貨號"] || "",
+        product_name: row.product_name || row["商品名稱"] || "",
+        category: row.category || row["盤點類別"] || "",
+        expiry: row.expiry || row["效期"] || "",
+        alert_qty: row.alert_qty ?? row.qty ?? row["批次庫存"] ?? "",
+        status_label: row.status_label || row["警示狀態"] || statusKey || "",
+        handling_status: row.handling_status || row["處理狀態"] || "已解決",
+        note: row.note || row.notes || row["處理備註"] || "",
+        resolver: row.resolver || row["處理人員"] || "",
+        resolved_at: row.resolved_at || row["處理時間"] || "",
+        source: row.source || row["來源"] || "",
+      };
+    }
+
+    function productBatches(item) {
+      if (Array.isArray(item?.batches) && item.batches.length) return item.batches;
+      return [{
+        expiry: expiryOf(item),
+        qty: item.expired_qty || item.within_90_qty || item.within_180_qty || item.within_365_qty || item.blank_qty || item["批次庫存"] || "",
+        source: item.source || item["來源"] || "",
+        updated_at: item.updated_at || item["最後更新日"] || "",
+        no_expiry: isNoExpiryItem(item),
+      }];
+    }
+
+    function buildExpiryRowsFromProducts(rows) {
+      const resolvedKeys = new Set(expiryResolvedCache.map((row) => row.key));
+      return rows.flatMap((item) => {
+        const category = categoryOfProduct(item);
+        const batches = productBatches(item);
+        const groups = new Map();
+        batches.forEach((batch) => {
+          const expiry = batch.expiry || batch["效期"] || "";
+          const rawQty = batch.qty ?? batch["批次庫存"];
+          const qty = rawQty === "" || rawQty == null ? "" : parseQty(rawQty);
+          const status = statusForExpiryValue(expiry, batch.no_expiry || isNoExpiryValue(expiry));
+          if (status.key === "ok") return;
+          const key = status.key;
+          if (!groups.has(key)) {
+            groups.set(key, {
+              qty: 0,
+              hasQty: false,
+              nearest: "",
+              status,
+              source: batch.source || batch["來源"] || "",
+              updated_at: batch.updated_at || batch["最後更新日"] || "",
+            });
+          }
+          const group = groups.get(key);
+          if (qty !== "") {
+            group.qty += qty;
+            group.hasQty = true;
+          }
+          const date = parseExpiryDate(expiry);
+          if (date && (!group.nearest || date < parseExpiryDate(group.nearest))) group.nearest = expiry;
+          if (!group.nearest && expiry) group.nearest = expiry;
+        });
+        return [...groups.entries()].map(([statusKey, group]) => {
+          const row = {
+            sku: skuOf(item),
+            product_name: nameOf(item),
+            category,
+            expiry: group.nearest || nearestExpiryForStatus(batches, statusKey),
+            alert_qty: group.hasQty ? group.qty : "",
+            total_stock: stockOf(item),
+            status_key: statusKey,
+            status_label: group.status.label,
+            status_cls: group.status.cls,
+            suggestion: group.status.suggestion,
+            source: group.source,
+            updated_at: group.updated_at,
+            counted: true,
+          };
+          row.key = alertKey(row);
+          row.resolved = resolvedKeys.has(row.key);
+          return row;
+        });
+      });
+    }
+
+    function nearestExpiryForStatus(batches, statusKey) {
+      return productBatches({ batches }).reduce((nearest, batch) => {
+        const expiry = batch.expiry || batch["效期"] || "";
+        if (statusForExpiryValue(expiry, batch.no_expiry || isNoExpiryValue(expiry)).key !== statusKey) return nearest;
+        const date = parseExpiryDate(expiry);
+        if (date && (!nearest || date < parseExpiryDate(nearest))) return expiry;
+        return nearest || expiry;
+      }, "");
+    }
+
+    function normalizeExpiryAlertRow(row) {
+      const status = statusForExpiryValue(row.expiry || row["效期"], false);
+      const normalized = {
+        batch_id: row.batch_id || row.id || row["批次 ID"] || "",
+        sku: row.sku || row["產品貨號"] || "",
+        product_name: row.product_name || row["商品名稱"] || "",
+        category: row.category || row["盤點類別"] || "",
+        expiry: row.expiry || row["效期"] || "",
+        alert_qty: parseQty(row.alert_qty ?? row.qty ?? row["批次庫存"]),
+        total_stock: row.total_stock ?? row.stock_total ?? row["總庫存"] ?? "",
+        status_key: row.status_key || row.key_status || status.key,
+        status_label: row.status_label || row["警示狀態"] || status.label,
+        status_cls: row.status_cls || status.cls,
+        suggestion: row.suggestion || row["處理建議"] || status.suggestion,
+        source: row.source || row["來源"] || "",
+        updated_at: row.updated_at || row["最後更新日"] || "",
+        counted: true,
+        resolved: Boolean(row.resolved || row.handling_status === "已解決" || row["處理狀態"] === "已解決"),
+      };
+      normalized.key = row.key || alertKey(normalized);
+      return normalized;
+    }
+
+    function calculateExpiryQtyMetrics(rows) {
+      return rows.reduce((acc, row) => {
+        if (row.status_key === "ok") return acc;
+        const qty = parseQty(row.alert_qty);
+        acc[row.status_key] = (acc[row.status_key] || 0) + qty;
+        acc.all += qty;
+        if (row.counted) acc.counted += 1;
+        return acc;
+      }, { expired: 0, "3m": 0, "6m": 0, "1y": 0, blank: 0, all: 0, counted: 0, resolved: expiryResolvedCache.length });
+    }
+
+    async function loadExpiryAlertsFromApi() {
+      if (!APPS_SCRIPT_WEB_APP_URL) return;
+      try {
+        const data = await callApi("getExpiryAlerts", { limit: 5000 });
+        const alerts = Array.isArray(data) ? data : (data.alerts || data.rows || []);
+        const resolved = Array.isArray(data) ? [] : (data.resolved || data.resolved_rows || []);
+        expiryResolvedCache = resolved.map(normalizeResolvedRecord);
+        const resolvedKeys = new Set(expiryResolvedCache.map((row) => row.key));
+        expiryAlertCache = alerts.map(normalizeExpiryAlertRow).map((row) => ({
+          ...row,
+          resolved: row.resolved || resolvedKeys.has(row.key),
+        }));
+        expiryApiLoaded = true;
+      } catch (err) {
+        expiryApiLoaded = false;
+        console.warn("getExpiryAlerts 尚未可用，改用 searchProducts 的 batches 備援。", err);
+      }
+    }
+
+    function expiryRowsForRender() {
+      if (expiryApiLoaded && expiryAlertCache.length) return expiryAlertCache;
       const productRows = productCache.length ? productCache : [];
       const blankRows = (dashboardCache?.expiryBlankPreview || []).map((item) => ({
         sku: item["產品貨號"],
         product_name: item["商品名稱"],
         category: item["盤點類別"],
-        stock_total: item["批次庫存"],
-        expiry: item["效期"],
+        batches: [{ qty: item["批次庫存"], expiry: item["效期"] }],
+        stock_total: "",
       }));
-      const source = productRows.length ? productRows : blankRows;
-      const rowsWithStatus = source.map((item) => ({ item, status: expiryStatus(item), counted: isCountedItem(item) }));
-      const counts = rowsWithStatus.reduce((acc, { status, counted }) => {
-        acc[status.key] = (acc[status.key] || 0) + 1;
-        if (status.key !== "ok") acc.all += 1;
-        if (counted) acc.counted += 1;
-        return acc;
-      }, { expired: 0, "3m": 0, "6m": 0, "1y": 0, blank: 0, all: 0, counted: 0 });
+      return buildExpiryRowsFromProducts(productRows.length ? productRows : blankRows);
+    }
+
+    function recordText(row) {
+      if (!row.resolved) return "";
+      const pieces = [
+        row.note ? `備註：${escapeHtml(row.note)}` : "",
+        row.resolver ? `人員：${escapeHtml(row.resolver)}` : "",
+        row.resolved_at ? `時間：${escapeHtml(String(row.resolved_at).slice(0, 19))}` : "",
+      ].filter(Boolean);
+      return pieces.join("<br>");
+    }
+
+    function renderExpiryAlerts() {
+      const table = document.getElementById("expiryTableBody");
+      if (!table) return;
+      const allRows = expiryRowsForRender();
+      const unresolvedRows = allRows.filter((row) => !row.resolved);
+      const rowsForCounts = unresolvedRows.filter((row) => row.status_key !== "ok");
+      const counts = calculateExpiryQtyMetrics(rowsForCounts);
       document.querySelectorAll(".warning strong").forEach((node, index) => {
         const keys = ["expired", "3m", "6m", "1y", "blank", "counted"];
         node.textContent = counts[keys[index]] || 0;
@@ -2382,59 +2743,177 @@
       if (countedNode) countedNode.textContent = counts.counted || 0;
       const metricValues = document.querySelectorAll(".metric-value");
       if (metricValues[1]) metricValues[1].textContent = (counts.expired || 0) + (counts["3m"] || 0) + (counts["6m"] || 0) + (counts["1y"] || 0);
-      const filtered = rowsWithStatus
-        .filter(({ status, counted }) => {
-          if (expiryFilter === "counted") return counted;
-          return expiryFilter === "all" ? status.key !== "ok" : status.key === expiryFilter;
+      const resolvedRows = [
+        ...allRows.filter((row) => row.resolved),
+        ...expiryResolvedCache.map((row) => ({
+          ...row,
+          total_stock: "",
+          status_key: row.status_label,
+          status_cls: "green",
+          suggestion: "已處理",
+          resolved: true,
+        })),
+      ];
+      const filtered = (expiryFilter === "resolved" ? resolvedRows : unresolvedRows)
+        .filter((row) => {
+          if (expiryFilter === "resolved") return true;
+          if (expiryFilter === "counted") return row.counted;
+          return expiryFilter === "all" ? row.status_key !== "ok" : row.status_key === expiryFilter;
         })
         .slice(0, 120);
       if (!filtered.length) {
-        table.innerHTML = `<tr><td colspan="7">目前沒有符合這個效期狀態的商品</td></tr>`;
+        table.innerHTML = `<tr><td colspan="10">目前沒有符合這個效期狀態的商品</td></tr>`;
         renderMobileCards("expiryMobileCards", [], () => "", "目前沒有符合這個效期狀態的商品");
         return;
       }
-      renderMobileCards("expiryMobileCards", filtered, ({ item, status }) => {
-        const category = categoryOfProduct(item);
-        return `
-          <article class="mobile-table-card">
-            <h3>${nameOf(item) || "未命名商品"}</h3>
-            <div class="mobile-card-line"><span>貨號</span><span>${skuOf(item)}</span></div>
-            <div class="mobile-card-line"><span>類別</span><span>${category}</span></div>
-            <div class="mobile-card-line"><span>效期</span><span>${isNoExpiryItem(item) ? "無效期" : (expiryOf(item) || "待補效期")}</span></div>
-            <div class="mobile-card-line"><span>狀態</span><span>${status.label}</span></div>
-          </article>
-        `;
-      }, "目前沒有符合這個效期狀態的商品");
-      table.innerHTML = filtered.map(({ item, status }) => {
-        const category = categoryOfProduct(item);
-        return `
+      renderMobileCards("expiryMobileCards", filtered, (row) => `
+        <article class="mobile-table-card">
+          <h3>${escapeHtml(row.product_name || "未命名商品")}</h3>
+          <div class="mobile-card-line"><span>貨號</span><span>${escapeHtml(row.sku)}</span></div>
+          <div class="mobile-card-line"><span>類別</span><span>${escapeHtml(row.category)}</span></div>
+          <div class="mobile-card-line"><span>警示數量</span><span>${escapeHtml(row.alert_qty)}</span></div>
+          <div class="mobile-card-line"><span>總庫存</span><span>${escapeHtml(row.total_stock)}</span></div>
+          <div class="mobile-card-line"><span>效期</span><span>${escapeHtml(row.expiry || "待補效期")}</span></div>
+          <div class="mobile-card-line"><span>狀態</span><span>${escapeHtml(row.status_label || row.handling_status || "")}</span></div>
+          ${row.resolved ? `<div class="mobile-card-line"><span>處理</span><span>${escapeHtml(row.note || "")}</span></div>` : ""}
+        </article>
+      `, "目前沒有符合這個效期狀態的商品");
+      table.innerHTML = filtered.map((row) => `
         <tr>
-          <td>${skuOf(item)}</td>
-          <td>${nameOf(item)}</td>
-          <td><span class="pill ${pillClass(category)}">${category}</span></td>
-          <td>${stockOf(item)}</td>
-          <td>${isNoExpiryItem(item) ? "無效期" : (expiryOf(item) || "待補效期")}</td>
-          <td><span class="pill ${status.cls}">${status.label}</span></td>
-          <td>${status.suggestion}</td>
+          <td>${escapeHtml(row.sku)}</td>
+          <td>${escapeHtml(row.product_name)}</td>
+          <td><span class="pill ${pillClass(row.category)}">${escapeHtml(row.category)}</span></td>
+          <td><strong>${escapeHtml(row.alert_qty)}</strong></td>
+          <td>${escapeHtml(row.total_stock)}</td>
+          <td>${escapeHtml(row.expiry || "待補效期")}</td>
+          <td><span class="pill ${row.resolved ? "green" : row.status_cls}">${escapeHtml(row.resolved ? "已解決" : row.status_label)}</span></td>
+          <td>${escapeHtml(row.suggestion || "")}</td>
+          <td>${recordText(row)}</td>
+          <td>
+            ${row.resolved ? `<span class="pill green">已解決</span>` : `<button class="btn danger resolve-expiry-btn" type="button" data-alert-key="${escapeAttr(row.key)}">已解決</button>`}
+          </td>
         </tr>
+      `).join("");
+      table.querySelectorAll(".resolve-expiry-btn").forEach((button) => {
+        button.addEventListener("click", () => {
+          const row = filtered.find((item) => item.key === button.dataset.alertKey);
+          if (row) openResolveDialog(row, button);
+        });
+      });
+    }
+
+    function openResolveDialog(row, triggerButton) {
+      const currentUser = localStorage.getItem("xinnanInventoryAssignee") || "";
+      const backdrop = document.createElement("div");
+      backdrop.className = "dialog-backdrop";
+      backdrop.innerHTML = `
+        <div class="dialog" role="dialog" aria-modal="true" aria-label="效期警示處理">
+          <h3>標記已解決</h3>
+          <div class="muted">${escapeHtml(row.sku)}｜${escapeHtml(row.product_name)}｜效期 ${escapeHtml(row.expiry || "待補")}</div>
+          <label>
+            處理備註
+            <textarea id="resolveNoteInput" placeholder="例如：已下架、已退貨、已報廢、已售完、盤點後確認效期輸入錯誤"></textarea>
+          </label>
+          <label>
+            處理人員
+            <input id="resolveUserInput" type="text" value="${escapeAttr(currentUser)}" placeholder="請輸入姓名">
+          </label>
+          <div class="dialog-actions">
+            <button class="btn" type="button" id="resolveCancelBtn">取消</button>
+            <button class="btn primary" type="button" id="resolveSaveBtn">儲存</button>
+          </div>
+        </div>
       `;
-      }).join("");
+      document.body.appendChild(backdrop);
+      const noteInput = backdrop.querySelector("#resolveNoteInput");
+      const userInput = backdrop.querySelector("#resolveUserInput");
+      const saveBtn = backdrop.querySelector("#resolveSaveBtn");
+      noteInput.focus();
+      backdrop.querySelector("#resolveCancelBtn").addEventListener("click", () => backdrop.remove());
+      saveBtn.addEventListener("click", async () => {
+        const note = noteInput.value.trim();
+        const resolver = userInput.value.trim();
+        if (!note) {
+          alert("請填寫處理備註。");
+          return;
+        }
+        if (!resolver) {
+          alert("請填寫處理人員。");
+          return;
+        }
+        localStorage.setItem("xinnanInventoryAssignee", resolver);
+        saveBtn.disabled = true;
+        saveBtn.textContent = "儲存中...";
+        if (triggerButton) {
+          triggerButton.disabled = true;
+          triggerButton.textContent = "儲存中...";
+        }
+        try {
+          const resolvedAt = new Date().toISOString();
+          await postApi({
+            action: "resolveExpiryAlert",
+            key: row.key,
+            sku: row.sku,
+            product_name: row.product_name,
+            category: row.category,
+            expiry: row.expiry,
+            batch_qty: row.alert_qty,
+            alert_status: row.status_label,
+            handling_status: "已解決",
+            note,
+            resolver,
+            source: row.source || "效期警示",
+          });
+          const resolvedRecord = normalizeResolvedRecord({
+            ...row,
+            handling_status: "已解決",
+            note,
+            resolver,
+            resolved_at: resolvedAt,
+          });
+          expiryResolvedCache.unshift(resolvedRecord);
+          expiryAlertCache = expiryAlertCache.map((item) => item.key === row.key ? { ...item, resolved: true, note, resolver, resolved_at: resolvedAt } : item);
+          backdrop.remove();
+          renderExpiryAlerts();
+        } catch (err) {
+          alert(`${err.message}\n\n請確認 Apps Script 已支援 resolveExpiryAlert，並建立「效期警示處理紀錄」分頁。`);
+          saveBtn.disabled = false;
+          saveBtn.textContent = "儲存";
+          if (triggerButton) {
+            triggerButton.disabled = false;
+            triggerButton.textContent = "已解決";
+          }
+        }
+      });
     }
 
     async function loadProductsFromApi(query = "") {
+      const normalizedQuery = String(query || "").trim();
+      const requestSeq = ++productLoadSeq;
       const tbody = document.getElementById("productTableBody");
       if (tbody) tbody.innerHTML = `<tr><td colspan="10">正在載入商品資料...</td></tr>`;
       try {
-        const rows = await callApi("searchProducts", { q: query, limit: 5000 });
-        if (!query || !productCache.length) productCache = rows;
+        const rows = await callApi("searchProducts", { q: normalizedQuery, limit: 5000 });
+        if (requestSeq !== productLoadSeq) return;
+        let rowsWithBatches = rows;
+        try {
+          rowsWithBatches = mergeExpiryBatches(rows, await loadExpiryBatches());
+        } catch (batchErr) {
+          console.warn(batchErr);
+        }
+        if (requestSeq !== productLoadSeq) return;
+        if (!normalizedQuery || !productCache.length) productCache = rowsWithBatches;
+        if (!normalizedQuery) await loadExpiryAlertsFromApi();
+        if (requestSeq !== productLoadSeq) return;
         const categoryFilter = document.getElementById("productCategoryFilter")?.value || "全部系列";
-        const filtered = categoryFilter === "全部系列"
-          ? rows
-          : rows.filter((item) => categoryOfProduct(item) === categoryFilter);
+        const filtered = normalizedQuery || categoryFilter === "全部系列"
+          ? rowsWithBatches
+          : rowsWithBatches.filter((item) => categoryOfProduct(item) === categoryFilter);
         renderProductRows(filtered);
         renderExpiryAlerts();
         renderHomeTasks();
       } catch (err) {
+        if (requestSeq !== productLoadSeq) return;
         if (tbody) tbody.innerHTML = `<tr><td colspan="10">${err.message}</td></tr>`;
         console.warn(err);
       }
@@ -2629,6 +3108,10 @@
             alert("請填寫每一批效期，或勾選此商品無效期");
             return;
           }
+          const totalStock = totalQtyFromBatches(batches);
+          const savedText = button.textContent;
+          button.disabled = true;
+          button.textContent = "儲存中...";
           try {
             await postApi({
               action: "updateExpiry",
@@ -2638,11 +3121,17 @@
               expiry: batches[0]?.expiry || "",
               no_expiry: batches[0]?.no_expiry || false,
               batches,
+              total_stock: totalStock,
+              actual_qty: totalStock,
+              write_inventory_record: true,
+              inventory_record_source: "庫存總覽效期批次儲存",
             });
             button.textContent = "已儲存";
             await loadProductsFromApi(productSearchInput?.value.trim() || "");
           } catch (err) {
             alert(`${err.message}\n\n若後端尚未支援，請在 Apps Script 新增 updateExpiry。`);
+            button.disabled = false;
+            button.textContent = savedText;
           }
         });
       });
