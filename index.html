@@ -1795,7 +1795,7 @@
   </div>
 
   <script>
-    const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw0ayAY50kIGxPvxCPwmdJ9bvD25ZpVfbkJifUvi704oklvAxh8SUg1EPTDCFROu-dd/exec";
+    const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyosOqvr1zXmQ7Ckv8F2aibo4c3fvE_hII2b2Kdp7aZNNTbrDKeO91wM5iE-qUR53nx/exec";
     const EXPIRY_BATCH_GVIZ_URL = "https://docs.google.com/spreadsheets/d/1qd8U4C5Hxnuq23oQsUht_7hpGE85lpz2D-nyc8v-_5g/gviz/tq?gid=1026804799";
     const SERIES_OPTIONS = [
       "A系列 保健食品",
@@ -3327,12 +3327,6 @@
               write_inventory_record: true,
               inventory_record_source: "庫存總覽效期批次儲存",
             });
-            try {
-              await saveInventoryRecordOnly({ sku, productName, category, totalStock });
-            } catch (recordErr) {
-              alert(`效期批次已儲存，但盤點紀錄寫入失敗：${recordErr.message}`);
-              if (statusText) statusText.textContent = "效期已儲存；盤點紀錄寫入失敗";
-            }
             updateProductAfterExpirySave(sku, batches, totalStock, productName, category);
             button.textContent = "已儲存";
             if (statusText && !statusText.textContent.includes("失敗")) statusText.textContent = `已更新總庫存 ${totalStock}，並同步新增盤點紀錄`;
