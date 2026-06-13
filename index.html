@@ -1818,6 +1818,7 @@
     let expiryResolvedCache = [];
     let expiryBatchCache = null;
     let expiryApiLoaded = false;
+    const LOCAL_RESOLVED_EXPIRY_KEY = "xinnanLocalResolvedExpiryAlerts";
     let productLoadSeq = 0;
     let homeMode = "assigned";
     let expiryFilter = "expired";
@@ -1968,21 +1969,45 @@
       return localDateString();
     }
 
+    function normalizeFourDigitDate(value) {
+      const text = String(value || "").trim();
+      if (!text || isNoExpiryValue(text)) return text;
+      const full = text.match(/^(\d{1,4})[-/](\d{1,2})[-/](\d{1,2})/);
+      if (full) {
+        let year = full[1];
+        if (year.length === 2) year = `20${year}`;
+        if (year.length === 3) year = `2${year}`;
+        if (year.length !== 4) return "";
+        return `${year}-${full[2].padStart(2, "0")}-${full[3].padStart(2, "0")}`;
+      }
+      const yearMonth = text.match(/^(\d{1,4})[-/](\d{1,2})$/);
+      if (yearMonth) {
+        let year = yearMonth[1];
+        if (year.length === 2) year = `20${year}`;
+        if (year.length === 3) year = `2${year}`;
+        if (year.length !== 4) return "";
+        return `${year}-${yearMonth[2].padStart(2, "0")}-01`;
+      }
+      const date = new Date(text);
+      return Number.isNaN(date.getTime()) ? "" : localDateString(date);
+    }
+
+    function isFourDigitDate(value) {
+      return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
+    }
+
     function formatDateValue(value) {
       if (!value) return "";
-      if (value instanceof Date) return value.toISOString().slice(0, 10);
-      const text = String(value);
-      if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
-      const date = new Date(text);
-      return Number.isNaN(date.getTime()) ? text.slice(0, 10) : localDateString(date);
+      if (value instanceof Date) return localDateString(value);
+      return normalizeFourDigitDate(value);
     }
 
     function getSelectedDashboardDate() {
-      return document.getElementById("dashboardDateInput")?.value || todayValue();
+      return formatDateValue(document.getElementById("dashboardDateInput")?.value) || todayValue();
     }
 
     function getSelectedCalendarDate() {
-      return document.getElementById("calendarDateInput")?.value || todayValue();
+      return formatDateValue(document.getElementById("calendarDateInput")?.value) || todayValue();
     }
 
     function categoryOfProduct(item) {
@@ -2084,7 +2109,7 @@
           </label>
           <label class="check-field">
             <span>批次效期</span>
-            <input class="batch-expiry-input" type="date" value="${dateInputValue(expiry)}" ${noExpiry ? "disabled" : ""}>
+            <input class="batch-expiry-input" type="date" min="1000-01-01" max="9999-12-31" value="${dateInputValue(expiry)}" ${noExpiry ? "disabled" : ""}>
           </label>
           <label class="inline-check">
             <input class="batch-no-expiry-input" type="checkbox" ${noExpiry ? "checked" : ""}>
@@ -2103,16 +2128,19 @@
           if (checkbox.checked) dateInput.value = "";
         });
       });
+      bindDateInputs(scope);
     }
 
     function collectBatchRows(scope) {
       return [...scope.querySelectorAll(".batch-row")].map((row) => {
         const noExpiry = row.querySelector(".batch-no-expiry-input").checked;
-        const expiry = row.querySelector(".batch-expiry-input").value;
+        const expiryInput = row.querySelector(".batch-expiry-input");
+        const expiry = noExpiry ? "無效期" : normalizeFourDigitDate(expiryInput.value);
+        if (!noExpiry && expiry) expiryInput.value = expiry;
         const qty = row.querySelector(".batch-qty-input").value;
         return {
           qty,
-          expiry: noExpiry ? "無效期" : expiry,
+          expiry,
           no_expiry: noExpiry,
         };
       }).filter((batch) => batch.qty !== "" || batch.expiry || batch.no_expiry);
@@ -2131,14 +2159,27 @@
     }
 
     function dateInputValue(value) {
-      const text = String(value || "").trim();
-      const full = text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
-      if (full) return `${full[1]}-${full[2].padStart(2, "0")}-${full[3].padStart(2, "0")}`;
-      const yearMonth = text.match(/^(\d{4})[-/](\d{1,2})$/);
-      if (yearMonth) return `${yearMonth[1]}-${yearMonth[2].padStart(2, "0")}-01`;
-      const shortYearMonth = text.match(/^(\d{2})[-/](\d{1,2})$/);
-      if (shortYearMonth) return `20${shortYearMonth[1]}-${shortYearMonth[2].padStart(2, "0")}-01`;
-      return "";
+      const normalized = normalizeFourDigitDate(value);
+      return isFourDigitDate(normalized) ? normalized : "";
+    }
+
+    function bindDateInputs(scope = document) {
+      scope.querySelectorAll('input[type="date"]').forEach((input) => {
+        input.min = "1000-01-01";
+        input.max = "9999-12-31";
+        if (input.dataset.fourDigitYearBound === "1") return;
+        input.dataset.fourDigitYearBound = "1";
+        input.addEventListener("blur", () => {
+          if (!input.value) return;
+          const normalized = normalizeFourDigitDate(input.value);
+          input.value = isFourDigitDate(normalized) ? normalized : "";
+        });
+        input.addEventListener("change", () => {
+          if (!input.value) return;
+          const normalized = normalizeFourDigitDate(input.value);
+          input.value = isFourDigitDate(normalized) ? normalized : "";
+        });
+      });
     }
 
     function compareSku(a, b) {
@@ -2403,6 +2444,68 @@
       return batches.reduce((sum, batch) => sum + parseQty(batch.qty ?? batch["批次庫存"]), 0);
     }
 
+    function nearestExpiryFromBatches(batches) {
+      return batches.reduce((nearest, batch) => {
+        if (batch.no_expiry || isNoExpiryValue(batch.expiry)) return nearest;
+        const expiry = normalizeFourDigitDate(batch.expiry);
+        const date = parseExpiryDate(expiry);
+        if (!date) return nearest;
+        if (!nearest || date < parseExpiryDate(nearest)) return expiry;
+        return nearest;
+      }, "");
+    }
+
+    function updateProductAfterExpirySave(sku, batches, totalStock, productName = "", category = "") {
+      const normalizedBatches = batches.map((batch) => ({
+        ...batch,
+        qty: batch.qty ?? batch["批次庫存"] ?? "",
+        expiry: batch.no_expiry ? "無效期" : normalizeFourDigitDate(batch.expiry),
+        source: batch.source || "庫存總覽效期批次儲存",
+        updated_at: todayValue(),
+      }));
+      const nearest = nearestExpiryFromBatches(normalizedBatches);
+      const hasNoExpiry = normalizedBatches.some((batch) => batch.no_expiry);
+      const statusText = hasNoExpiry ? "無效期" : "效期已補";
+      const apply = (item) => {
+        if (skuOf(item) !== sku) return item;
+        return {
+          ...item,
+          product_name: nameOf(item) || productName,
+          category: item.category || category,
+          stock_total: totalStock,
+          stock_available: totalStock,
+          expiry: hasNoExpiry ? "無效期" : nearest,
+          nearest_expiry: nearest,
+          expiry_status: statusText,
+          no_expiry: hasNoExpiry,
+          batches: normalizedBatches,
+        };
+      };
+      productCache = productCache.map(apply);
+      expiryBatchCache = Array.isArray(expiryBatchCache)
+        ? [
+            ...expiryBatchCache.filter((batch) => batch.sku !== sku),
+            ...normalizedBatches.map((batch) => ({
+              sku,
+              product_name: productName,
+              category,
+              expiry: batch.expiry,
+              qty: batch.qty,
+              source: batch.source,
+              updated_at: batch.updated_at,
+            })),
+          ]
+        : expiryBatchCache;
+      const row = document.querySelector(`[data-product-row="${CSS.escape(sku)}"]`);
+      if (row) {
+        const cells = row.querySelectorAll("td");
+        if (cells[5]) cells[5].textContent = totalStock;
+        if (cells[7]) cells[7].textContent = hasNoExpiry ? "無效期" : (nearest || "待補效期");
+        if (cells[8]) cells[8].textContent = statusText;
+      }
+      renderExpiryAlerts();
+    }
+
     function renderProductRows(rows) {
       const tbody = document.getElementById("productTableBody");
       if (!tbody) return;
@@ -2573,7 +2676,31 @@
         resolver: row.resolver || row["處理人員"] || "",
         resolved_at: row.resolved_at || row["處理時間"] || "",
         source: row.source || row["來源"] || "",
+        local_pending: Boolean(row.local_pending),
       };
+    }
+
+    function loadLocalResolvedRecords() {
+      try {
+        const rows = JSON.parse(localStorage.getItem(LOCAL_RESOLVED_EXPIRY_KEY) || "[]");
+        return Array.isArray(rows) ? rows.map((row) => normalizeResolvedRecord({ ...row, local_pending: true })) : [];
+      } catch (err) {
+        console.warn(err);
+        return [];
+      }
+    }
+
+    function saveLocalResolvedRecords(rows) {
+      localStorage.setItem(LOCAL_RESOLVED_EXPIRY_KEY, JSON.stringify(rows.map(normalizeResolvedRecord)));
+    }
+
+    function mergeResolvedRecords(remoteRows, localRows) {
+      const map = new Map();
+      [...localRows, ...remoteRows].forEach((row) => {
+        const normalized = normalizeResolvedRecord(row);
+        map.set(normalized.key, normalized);
+      });
+      return [...map.values()];
     }
 
     function productBatches(item) {
@@ -2692,7 +2819,7 @@
         const data = await callApi("getExpiryAlerts", { limit: 5000 });
         const alerts = Array.isArray(data) ? data : (data.alerts || data.rows || []);
         const resolved = Array.isArray(data) ? [] : (data.resolved || data.resolved_rows || []);
-        expiryResolvedCache = resolved.map(normalizeResolvedRecord);
+        expiryResolvedCache = mergeResolvedRecords(resolved.map(normalizeResolvedRecord), loadLocalResolvedRecords());
         const resolvedKeys = new Set(expiryResolvedCache.map((row) => row.key));
         expiryAlertCache = alerts.map(normalizeExpiryAlertRow).map((row) => ({
           ...row,
@@ -2701,6 +2828,7 @@
         expiryApiLoaded = true;
       } catch (err) {
         expiryApiLoaded = false;
+        expiryResolvedCache = mergeResolvedRecords([], loadLocalResolvedRecords());
         console.warn("getExpiryAlerts 尚未可用，改用 searchProducts 的 batches 備援。", err);
       }
     }
@@ -2724,6 +2852,7 @@
         row.note ? `備註：${escapeHtml(row.note)}` : "",
         row.resolver ? `人員：${escapeHtml(row.resolver)}` : "",
         row.resolved_at ? `時間：${escapeHtml(String(row.resolved_at).slice(0, 19))}` : "",
+        row.local_pending ? `狀態：本機暫存，待後端同步` : "",
       ].filter(Boolean);
       return pieces.join("<br>");
     }
@@ -2876,6 +3005,24 @@
           backdrop.remove();
           renderExpiryAlerts();
         } catch (err) {
+          if (String(err.message || "").includes("Unknown action")) {
+            const resolvedAt = new Date().toISOString();
+            const resolvedRecord = normalizeResolvedRecord({
+              ...row,
+              handling_status: "已解決",
+              note,
+              resolver,
+              resolved_at: resolvedAt,
+              source: row.source || "效期警示",
+              local_pending: true,
+            });
+            expiryResolvedCache = mergeResolvedRecords(expiryResolvedCache, [resolvedRecord]);
+            saveLocalResolvedRecords(expiryResolvedCache.filter((item) => item.local_pending));
+            expiryAlertCache = expiryAlertCache.map((item) => item.key === row.key ? { ...item, resolved: true, note, resolver, resolved_at: resolvedAt, local_pending: true } : item);
+            backdrop.remove();
+            renderExpiryAlerts();
+            return;
+          }
           alert(`${err.message}\n\n請確認 Apps Script 已支援 resolveExpiryAlert，並建立「效期警示處理紀錄」分頁。`);
           saveBtn.disabled = false;
           saveBtn.textContent = "儲存";
@@ -2994,7 +3141,7 @@
     }
 
     async function saveCalendarItem() {
-      const date = document.getElementById("calendarDateInput").value;
+      const date = formatDateValue(document.getElementById("calendarDateInput").value);
       const category = document.getElementById("calendarCategoryInput").value;
       const selected = document.getElementById("calendarProductSelect");
       const selectedSku = selected?.value || "";
@@ -3005,6 +3152,7 @@
         alert("請先選擇日期");
         return;
       }
+      document.getElementById("calendarDateInput").value = date;
       if (!confirm(`確認新增 ${date} 的盤點安排？`)) return;
       await postApi({
         action: "saveCalendar",
@@ -3110,8 +3258,10 @@
           }
           const totalStock = totalQtyFromBatches(batches);
           const savedText = button.textContent;
+          const statusText = editor.querySelector(".muted");
           button.disabled = true;
           button.textContent = "儲存中...";
+          if (statusText) statusText.textContent = "儲存中...";
           try {
             await postApi({
               action: "updateExpiry",
@@ -3126,12 +3276,18 @@
               write_inventory_record: true,
               inventory_record_source: "庫存總覽效期批次儲存",
             });
+            updateProductAfterExpirySave(button.dataset.sku, batches, totalStock, editor.dataset.productName || "", editor.dataset.category || "");
             button.textContent = "已儲存";
-            await loadProductsFromApi(productSearchInput?.value.trim() || "");
+            if (statusText) statusText.textContent = `已更新總庫存 ${totalStock}，並同步新增盤點紀錄`;
+            setTimeout(() => {
+              button.disabled = false;
+              button.textContent = savedText;
+            }, 900);
           } catch (err) {
             alert(`${err.message}\n\n若後端尚未支援，請在 Apps Script 新增 updateExpiry。`);
             button.disabled = false;
             button.textContent = savedText;
+            if (statusText) statusText.textContent = "儲存失敗，請確認後再試";
           }
         });
       });
@@ -3189,6 +3345,7 @@
     });
     document.getElementById("calendarDateInput").value = todayValue();
     document.getElementById("dashboardDateInput").value = todayValue();
+    bindDateInputs(document);
 
     renderTodayLabel();
     loadDashboardFromApi();
